@@ -1,19 +1,24 @@
 version: '3.1'
 
 services:
-  sql-server-db:
-    container_name: sql-server-db
-    image: microsoft/mssql-server-linux:2017-latest
-    ports:
-      - "8081:80"
-    environment:
-      SA_PASSWORD: "change_this_password"
-      ACCEPT_EULA: "Y"
 
-  phpmyadmin:
-    image: phpmyadmin
+  db:
+    image: mysql
+    # NOTE: use of "mysql_native_password" is not recommended:
+    # https://dev.mysql.com/doc/refman/8.0/en/upgrading-from-previous-series.html#upgrade-caching-sha2-password
+    # (this is just an example, not intended to be a production configuration)
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: Qwerty123456
+
+  adminer:
+    image: adminer
     restart: always
     ports:
-      - "8080:80"
-    environment:
-      - PMA_ARBITRARY=1
+      - 8080:80
+
+  head_bot:
+    image: image/head_bot:latest
+    build:
+      context: ./head_bot

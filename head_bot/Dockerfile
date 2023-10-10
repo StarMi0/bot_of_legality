@@ -16,10 +16,10 @@ WORKDIR /head_bot
 ENV VIRTUAL_ENV=/env
 RUN python -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-ENV BOT_TOKEN=YourToken
+ENV BOT_TOKEN=5536556669:AAHnJXF_UJYb_rME2hZ1Quftj3cTw5HAaV8
 
 # Номер порта для Докер-образа
-EXPOSE 8001
+EXPOSE 8082
 
 # Команды выполняемые при первом запуске контейнера
 RUN pip install -r req.txt
