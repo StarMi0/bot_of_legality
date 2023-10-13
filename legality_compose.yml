@@ -1,26 +1,54 @@
-version: '3.1'
+version: '3'
 
 services:
-  db:
-    image: mysql
-    restart: always
+  mysql:
+    image: mysql:latest
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: db
+      MYSQL_ROOT_PASSWORD: Qwerty654321
+      MYSQL_DATABASE: legality
+      MYSQL_USER: root
+      MYSQL_PASSWORD: Zxxcvbnm,./
     ports:
-      - "8080:80"
+      - "3306:3306"  # Проброс портов для доступа к MySQL с хост-машины
+    volumes:
+      - ./mysql-data:/var/lib/mysql
 
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin:latest
-    restart: always
-    environment:
-      PMA_HOST: db
-      PMA_USER: root
-      PMA_PASSWORD: root
+  adminer:
+    image: adminer:latest  # Образ Adminer для администрирования MySQL
     ports:
-      - "8081:80"
+      - "8080:8080"  # Проброс порта для доступа к Adminer с хост-машины
 
-  head_bot:
-    image: image/head_bot:latest
+    depends_on:
+      - mysql
+
+  telegram-bot:
     build:
-      context: ./head_bot
+      context: .  # Контекст сборки - текущий каталог, где находится Dockerfile
+    environment:
+      BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      GIT_AUTH_TOKEN: ${GIT_AUTH_TOKEN}
+    volumes:
+      - .:/app  # Примонтировать текущий каталог (с Dockerfile) внутрь контейнера в /app
+    restart: always  # Всегда перезапускать контейнер
+    command: python /app/head_bot/main.py  # Команда для запуска вашего бота
+    secrets:
+      - git_ssh_key
+    depends_on:
+      - mysql
+
+  git-updater:
+    image: alpine/git
+    volumes:
+      - .
+    command: >
+      sh -c "while :;
+      do
+        git -C /repo pull;
+        sleep 7200;
+      done"
+    secrets:
+      - git_ssh_key
+
+secrets:
+  git_ssh_key:
+    file: .env
