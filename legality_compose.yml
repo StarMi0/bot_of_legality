@@ -14,10 +14,12 @@ services:
       - ./mysql-data:/var/lib/mysql
 
   adminer:
-    image: adminer:latest  # Образ Adminer для администрирования MySQL
+    image: phpmyadmin:latest  # Образ Adminer для администрирования MySQL
+    restart: always
     ports:
       - "8080:8080"  # Проброс порта для доступа к Adminer с хост-машины
-
+    environment:
+      - PMA_ARBITRARY=1
     depends_on:
       - mysql
 
@@ -27,6 +29,7 @@ services:
     environment:
       BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       GIT_AUTH_TOKEN: ${GIT_AUTH_TOKEN}
+      TOKEN_ADMIN: ${TOKEN_ADMIN}
     volumes:
       - .:/app  # Примонтировать текущий каталог (с Dockerfile) внутрь контейнера в /app
     restart: always  # Всегда перезапускать контейнер
@@ -39,7 +42,7 @@ services:
   git-updater:
     image: alpine/git
     volumes:
-      - .
+      - .:/app
     command: >
       sh -c "while :;
       do
