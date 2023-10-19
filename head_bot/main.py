@@ -22,7 +22,7 @@ async def main() -> None:
         format="%(asctime)s - [%(levelname)s] - %(name)s - "
                "(%(filename)s).%(funcaname)s(%(lineno)d) - %(message)s"
     )
-    TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+    TOKEN = os.environ["BOT_TOKEN"]
     # All handlers should be attached to the Router (or Dispatcher)
     dp = Dispatcher()
     dp.startup.register(start_bot)

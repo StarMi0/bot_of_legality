@@ -1,27 +1,29 @@
 version: '3'
 
 services:
-  mysql:
+  db:
     image: mysql:latest
+    container_name: db
+    command: --default-a
     environment:
-      MYSQL_ROOT_PASSWORD: Qwerty654321
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: legality
-      MYSQL_USER: root
-      MYSQL_PASSWORD: Zxxcvbnm,./
     ports:
       - "3306:3306"  # Проброс портов для доступа к MySQL с хост-машины
     volumes:
       - ./mysql-data:/var/lib/mysql
 
-  adminer:
-    image: phpmyadmin:latest  # Образ Adminer для администрирования MySQL
+  phpmyadmin:
+    container_name: phpmyadmin
+    image: phpmyadmin/phpmyadmin:latest  # Образ Adminer для администрирования MySQL
     restart: always
-    ports:
-      - "8080:8080"  # Проброс порта для доступа к Adminer с хост-машины
     environment:
-      - PMA_ARBITRARY=1
-    depends_on:
-      - mysql
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: ${DB_ROOT_PASSWORD}
+    ports:
+      - "8081:81"  # Проброс порта для доступа к Adminer с хост-машины
 
   telegram-bot:
     build:
@@ -37,7 +39,7 @@ services:
     secrets:
       - git_ssh_key
     depends_on:
-      - mysql
+      - db
 
   git-updater:
     image: alpine/git
