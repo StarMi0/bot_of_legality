@@ -3,27 +3,30 @@ version: '3'
 services:
   db:
     image: mysql:latest
+    restart: unless-stopped
     container_name: db
-    command: --default-a
+    command: --default-authentication-plugin=mysql_native_password
     environment:
+      MYSQL_USER: Admin_legal
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: legality
-    ports:
-      - "3306:3306"  # Проброс портов для доступа к MySQL с хост-машины
     volumes:
-      - ./mysql-data:/var/lib/mysql
+      - $HOME/star/docker/mysql/data:/var/lib/mysql
+    networks:
+      - mysql-database
 
   phpmyadmin:
-    container_name: phpmyadmin
-    image: phpmyadmin/phpmyadmin:latest  # Образ Adminer для администрирования MySQL
+    image: phpmyadmin:latest
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       PMA_HOST: db
       PMA_USER: root
       PMA_PASSWORD: ${DB_ROOT_PASSWORD}
     ports:
-      - "8081:81"  # Проброс порта для доступа к Adminer с хост-машины
+      - 8080:80
+    networks:
+      - mysql-database
 
   telegram-bot:
     build:
@@ -32,6 +35,10 @@ services:
       BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       GIT_AUTH_TOKEN: ${GIT_AUTH_TOKEN}
       TOKEN_ADMIN: ${TOKEN_ADMIN}
+      MYSQL_USER: Admin_legal
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: legality
     volumes:
       - .:/app  # Примонтировать текущий каталог (с Dockerfile) внутрь контейнера в /app
     restart: always  # Всегда перезапускать контейнер
@@ -40,20 +47,23 @@ services:
       - git_ssh_key
     depends_on:
       - db
+    ports:
+      - "8081:8080"  # Проброс порта для доступа
 
-  git-updater:
-    image: alpine/git
-    volumes:
-      - .:/app
-    command: >
-      sh -c "while :;
-      do
-        git -C /repo pull;
-        sleep 7200;
-      done"
-    secrets:
-      - git_ssh_key
+  redis:
+    image: "redis:latest"
+    container_name: "my-redis-container"
+    ports:
+      - "6379:6379"
+    networks:
+      - my_network
 
 secrets:
   git_ssh_key:
     file: .env
+
+networks:
+  mysql-database:
+    driver: bridge
+  my_network:
+    driver: bridge
