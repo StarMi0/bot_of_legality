@@ -15,6 +15,13 @@ logger.add('DEBUG.log', format="{time} {level} {message}", filter="my_module", l
 logger.add('DEBUG.log', format="{time} {level} {message}", filter="my_module", level="DEBUG")
 
 
+db_config = {
+    'host': os.environ["BOT_TOKEN"],
+    'user': os.environ["BOT_TOKEN"],
+    'password': os.environ["BOT_TOKEN"],
+    'database': os.environ["BOT_TOKEN"],
+}
+
 async def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
@@ -35,7 +42,6 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    """Запускаем в фоне проверку подписок и запускаем самого бота"""
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     try:
         asyncio.run(main())
