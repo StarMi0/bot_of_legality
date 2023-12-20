@@ -1,6 +1,6 @@
 from typing import List
 import aiomysql
-from main import db_config
+from utils.config import db_config
 
 async def create_pool():
     return await aiomysql.create_pool(**db_config)

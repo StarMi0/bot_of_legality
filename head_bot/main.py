@@ -8,6 +8,7 @@ from aiogram.enums import ParseMode
 from loguru import logger
 
 import handlers
+from handlers.register_routers import register_users, register_lawyers
 
 """Настраиваем логи"""
 logger.add('DEBUG.log', format="{time} {level} {message}", filter="my_module", level="ERROR")
@@ -15,12 +16,7 @@ logger.add('DEBUG.log', format="{time} {level} {message}", filter="my_module", l
 logger.add('DEBUG.log', format="{time} {level} {message}", filter="my_module", level="DEBUG")
 
 
-db_config = {
-    'host': os.environ["BOT_TOKEN"],
-    'user': os.environ["BOT_TOKEN"],
-    'password': os.environ["BOT_TOKEN"],
-    'database': os.environ["BOT_TOKEN"],
-}
+
 
 async def main() -> None:
     logging.basicConfig(
@@ -31,10 +27,13 @@ async def main() -> None:
     TOKEN = os.environ["BOT_TOKEN"]
     # All handlers should be attached to the Router (or Dispatcher)
     dp = Dispatcher()
+    await register_users()
+    await register_lawyers()
     # Add handlers by routers
     dp.include_router(handlers.admin.router_admin)
     dp.include_router(handlers.lawyers.router_lawyers)
     dp.include_router(handlers.users.router_users)
+
     # Initialize Bot instance with a default parse mode which will be passed to all API calls
     bot = Bot(TOKEN, parse_mode=ParseMode.HTML)
     # And the run events dispatching

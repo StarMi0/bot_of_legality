@@ -1,6 +1,6 @@
 import asyncio
 import aiomysql
-from main import db_config
+from utils.config import db_config
 
 
 async def create_db():
