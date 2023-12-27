@@ -32,13 +32,16 @@ services:
     build:
       context: .  # Контекст сборки - текущий каталог, где находится Dockerfile
     environment:
+      # bot env data
       BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       GIT_AUTH_TOKEN: ${GIT_AUTH_TOKEN}
       TOKEN_ADMIN: ${TOKEN_ADMIN}
+      # DB env data
       MYSQL_USER: Admin_legal
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: legality
+      MYSQL_HOST: ${DB_HOST}
     volumes:
       - .:/app  # Примонтировать текущий каталог (с Dockerfile) внутрь контейнера в /app
     restart: always  # Всегда перезапускать контейнер
