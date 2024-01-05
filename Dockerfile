@@ -1,9 +1,6 @@
-FROM ubuntu:latest
-LABEL authors="stars"
-LABEL maintainer="self_bot"
-ENTRYPOINT ["top", "-b"]
-
 FROM python:3.10
+LABEL authors="Ramzan"
+LABEL maintainer="Legality_bot"
 
 # Установите Git, чтобы скачать репозиторий GitHub
 RUN apt-get update && apt-get install -y git
@@ -27,12 +24,12 @@ ENV AUTO_GROUP_ID=${AUTO_GROUP_ID}
 ENV AUDIT_GROUP_ID=${AUDIT_GROUP_ID}
 ENV ALL_CONSULT_ID=${ALL_CONSULT_ID}
 
-# Склонируйте репозиторий GitHub
-RUN git clone https://github.com/StarMi0/bot_of_legality.git /app
-
 COPY ./head_bot /app
 
-RUN cd /app/head_bot
+# Устанавливаем зависимости из requirements.txt
+RUN cd /app
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Запуск вашего бота
-CMD ["python", "/app/head_bot/main.py"]
+CMD ["python", "/app/main.py"]

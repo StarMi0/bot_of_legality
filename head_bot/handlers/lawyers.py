@@ -23,6 +23,7 @@ async def process_response(call: CallbackQuery, bot: Bot, callback_data: GetResp
     #                           message_id=call.message.message_id)
     await bot.send_message(chat_id=call.from_user.id, text='Введите примерные сроки работы:')
 
+
 @router_lawyers.message(F.text, StateFilter(Consult.develop_time))
 async def get_develop_time(message: Message, bot: Bot, state: FSMContext):
     develop_time = message.text
@@ -59,7 +60,7 @@ async def send_offer_to_client(call: CallbackQuery, bot: Bot, state: FSMContext)
     lawyer_id = call.from_user.id
     kb = InlineKeyboardBuilder()
     # Ниже получаем из бд инфу по юристу и суем ее в сообщение (а че там кроме рейтинга)
-    lawyer_info = None#await get_lawyer_info(lawyer_id)
+    lawyer_info = None  # await get_lawyer_info(lawyer_id)
     kb.button(text='Принять',
               callback_data=ConfirmOrDeleteOffer(order_id=order_id, user_id=original_user_id,
                                                  lawyer_id=lawyer_id, confirm=True))
@@ -72,5 +73,3 @@ async def send_offer_to_client(call: CallbackQuery, bot: Bot, state: FSMContext)
                    f'Рейтинг юриста: {lawyer_info}'
 
     await bot.send_message(chat_id=original_user_id, text=message_text, reply_markup=kb.as_markup())
-
-

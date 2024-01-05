@@ -19,6 +19,7 @@ async def register_users():
     router_users.callback_query.register(send_query_to_lawyers, F.data == 'send_query_to_lawyers_chat')
     router_users.callback_query.register(confirm_or_delete_offer, ConfirmOrDeleteOffer.filter())
 
+
 async def register_lawyers():
     router_lawyers.callback_query.register(process_response, GetResponse.filter())
     router_lawyers.message.register(get_develop_time, F.text, StateFilter(Consult.develop_time))

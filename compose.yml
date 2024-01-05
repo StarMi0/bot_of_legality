@@ -4,27 +4,30 @@ services:
   db:
     image: mysql:latest
     restart: unless-stopped
-    container_name: db
+    container_name: mysql-db
     command: --default-authentication-plugin=mysql_native_password
     environment:
-      MYSQL_USER: Admin_legal
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: legality
-    volumes:
-      - $HOME/star/docker/mysql/data:/var/lib/mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${DB_ROOT_PASSWORD}
+    ports:
+      - "3306:3306"
     networks:
       - mysql-database
 
   phpmyadmin:
     image: phpmyadmin:latest
     restart: always
+    container_name: phpmyadmin
     environment:
       PMA_HOST: db
-      PMA_USER: root
-      PMA_PASSWORD: ${DB_ROOT_PASSWORD}
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
     ports:
-      - 8080:80
+      - "8080:80"
+    depends_on:
+      - db
     networks:
       - mysql-database
 
@@ -34,28 +37,28 @@ services:
     environment:
       # bot env data
       BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      GIT_AUTH_TOKEN: ${GIT_AUTH_TOKEN}
       TOKEN_ADMIN: ${TOKEN_ADMIN}
       # DB env data
-      MYSQL_USER: Admin_legal
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: legality
-      MYSQL_HOST: ${DB_HOST}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_USER: ${MYSQL_USER}
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
     volumes:
       - .:/app  # Примонтировать текущий каталог (с Dockerfile) внутрь контейнера в /app
     restart: always  # Всегда перезапускать контейнер
-    command: python /app/head_bot/main.py  # Команда для запуска вашего бота
-    secrets:
-      - git_ssh_key
+    command: python /app/main.py  # Команда для запуска вашего бота
     depends_on:
       - db
     ports:
       - "8081:8080"  # Проброс порта для доступа
+    networks:
+      - mysql-database
 
   redis:
     image: "redis:latest"
     container_name: "my-redis-container"
+    depends_on:
+      - db
     ports:
       - "6379:6379"
     networks:

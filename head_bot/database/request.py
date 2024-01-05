@@ -1,51 +1,58 @@
-from typing import List
-import aiomysql
-from utils.config import db_config
+import os
 
-async def create_pool():
-    return await aiomysql.create_pool(**db_config)
+import mysql.connector
+from mysql.connector import Error
 
-# Айди юзера и админа хранится в числовом виде в базе
-async def user_exists(user_id: int):
+my_host = os.getenv('MYSQL_HOST', 'localhost')
+my_user = os.getenv('MYSQL_USER', 'admin')
+my_password = os.getenv('DB_ROOT_PASSWORD', 'Qwerty123456')
+my_database = "legality"
+
+
+# Функция для проверки подключения к базе данных
+def check_db_connection():
     try:
-        pool = await create_pool()
-        async with pool.acquire() as connection:
-            async with connection.cursor() as cursor:
-                query = "SELECT * FROM users WHERE user_id = %s"
-                await cursor.execute(query, (user_id,))
-                result = await cursor.fetchone()
+        connection = mysql.connector.connect(
+            host=my_host,
+            user=my_user,
+            password=my_password,
+            database=my_database
+        )
+        if connection.is_connected():
+            print("Успешное подключение к базе данных")
+            return True
+    except Error as e:
+        print(f"Ошибка подключения к базе данных: {e}")
+    return False
 
-                return result is not None
-    except Exception as e:
-        print(f"Error checking if user exists: {e}")
-        return False
 
-# Понять в каком виде хранится дата, дописать тайпинг
-# Айди юзера и админа хранится в числовом виде в базе
-async def add_user(user_id: int, role: str, registration_data):
+# Функция для проверки таблицы и ее создания при отсутствии
+def create_table_if_not_exists():
     try:
-        pool = await create_pool()
-        async with pool.acquire() as connection:
-            async with connection.cursor() as cursor:
-                query = "INSERT INTO users (user_id, role, registration_data) VALUES (%s, %s, %s)"
-                await cursor.execute(query, (user_id, role, registration_data))
+        connection = mysql.connector.connect(
+            host=my_host,
+            user=my_user,
+            password=my_password,
+            database=my_database
+        )
+        cursor = connection.cursor()
 
-            await connection.commit()
-    except Exception as e:
-        print(f"Error adding user: {e}")
-
-
-# Добавить в базу данных таблицу админов
-async def get_admins() -> List[int]:
-    try:
-        pool = await create_pool()
-        async with pool.acquire() as connection:
-            async with connection.cursor() as cursor:
-                query = "SELECT admin_id FROM admin"
-                await cursor.execute(query,)
-                result = cursor.fetchall()
-            return result
-    except Exception as e:
-        print(f"Error adding user: {e}")
+        # SQL-запрос для создания таблицы
+        # create_table_query = """
+        # CREATE TABLE IF NOT EXISTS user_data (
+        #     tg_id INT PRIMARY KEY,
+        #     date DATE,
+        #     name VARCHAR(255)
+        # );
+        # """
+        cursor.execute(create_table_query)
+        connection.commit()
+        print("Таблица успешно создана или уже существует")
+    except Error as e:
+        print(f"Ошибка при создании таблицы: {e}")
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
 
 
