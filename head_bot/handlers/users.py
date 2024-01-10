@@ -15,7 +15,6 @@ from utils.utils import generate_unique_identifier
 router_users = Router()
 
 
-
 async def get_start(message: Message, bot: Bot):
     """
     Main start handler
@@ -47,6 +46,7 @@ async def get_start(message: Message, bot: Bot):
 Ветка Юридическая консультация
 """
 
+
 async def process_branch(call: CallbackQuery, bot: Bot, callback_data: BranchChoose, state: FSMContext):
     await call.answer()
     print(callback_data.branch)
@@ -55,20 +55,19 @@ async def process_branch(call: CallbackQuery, bot: Bot, callback_data: BranchCho
     await state.set_state(Consult.question)
 
 
-
-async def process_input_file(message: Message, bot:Bot, state: FSMContext):
+async def process_input_file(message: Message, bot: Bot, state: FSMContext):
     kb = InlineKeyboardBuilder()
     kb.button(text="Без файла", callback_data="send_query_to_lawyers_chat")
     kb.adjust(1)
     await state.update_data(question=message.text)
-    await bot.send_message(chat_id=message.from_user.id, text="Отправьте необходимые файлы по Вашему вопросу. \n\nМожно отправить только один файл, "
-                         "поэтому если у Вас есть несколько файлов, которыми вы хотели бы поделиться, "
-                         "запакуйте их в архив.", reply_markup=kb.as_markup())
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Отправьте необходимые файлы по Вашему вопросу. \n\nМожно отправить только один файл, "
+                                "поэтому если у Вас есть несколько файлов, которыми вы хотели бы поделиться, "
+                                "запакуйте их в архив.", reply_markup=kb.as_markup())
     await state.set_state(Consult.file_add)
 
 
 async def process_file_from_user(message: types.Message, bot: Bot, state: FSMContext):
-
     kb = InlineKeyboardBuilder()
     kb.button(text='Отправить вопрос', callback_data='send_query_to_lawyers_chat')
     # Process the file and add it to the data stored in the state
@@ -90,6 +89,7 @@ async def process_file_from_user(message: types.Message, bot: Bot, state: FSMCon
                            text=f"Файл '{file_name}' добавлен. Можете добавить еще или подтвердить вопрос.",
                            reply_markup=kb.as_markup())
 
+
 # async def delete_file(callback: types.CallbackQuery, state: FSMContext):
 #     data = await state.get_data()
 #     files = data.get("files", [])
@@ -99,8 +99,8 @@ async def process_file_from_user(message: types.Message, bot: Bot, state: FSMCon
 #     await callback.message.answer("Файл удален. Можете добавить еще или подтвердить вопрос.")
 
 
-
 async def send_query_to_lawyers(callback: types.CallbackQuery, bot: Bot, state: FSMContext):
+    await callback.answer()
     data = await state.get_data()
     group_id = data.get('group_id')
     files = data.get('files')
@@ -118,13 +118,16 @@ async def send_query_to_lawyers(callback: types.CallbackQuery, bot: Bot, state: 
                 media_group.add_document(media=f)
             media_group.add_document(media=files[-1], caption=question)
             await bot.send_media_group(chat_id=group_id, media=media_group.build())
-            await bot.send_message(chat_id=group_id, text='Чтобы откликнуться на заказ выше⬆', reply_markup=kb.as_markup())
+            await bot.send_message(chat_id=group_id, text='Чтобы откликнуться на заказ выше⬆',
+                                   reply_markup=kb.as_markup())
         else:
             await bot.send_message(chat_id=group_id, text=question, reply_markup=kb.as_markup())
     await state.clear()
 
-async def confirm_or_edith_query(message: Message, bot:Bot, state: FSMContext):
+
+async def confirm_or_edith_query(message: Message, bot: Bot, state: FSMContext):
     pass
+
 
 async def clear_state(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer("Чат окончен")
@@ -137,8 +140,8 @@ async def check_active_query(user_id):
     return False
 
 
-
-async def confirm_or_delete_offer(call: CallbackQuery, bot: Bot, callback_data: ConfirmOrDeleteOffer, state: FSMContext):
+async def confirm_or_delete_offer(call: CallbackQuery, bot: Bot, callback_data: ConfirmOrDeleteOffer,
+                                  state: FSMContext):
     order_id: callback_data.order_id
     user_id: callback_data.user_id
     lawyer_id: callback_data.lawyer_id

@@ -26,13 +26,16 @@ async def main() -> None:
     )
     TOKEN = os.environ["BOT_TOKEN"]
     # All handlers should be attached to the Router (or Dispatcher)
+
     dp = Dispatcher()
-    await register_users()
     await register_lawyers()
+    await register_users()
+
     # Add handlers by routers
+    dp.include_router(handlers.users.router_users)
     dp.include_router(handlers.admin.router_admin)
     dp.include_router(handlers.lawyers.router_lawyers)
-    dp.include_router(handlers.users.router_users)
+
 
     # Initialize Bot instance with a default parse mode which will be passed to all API calls
     bot = Bot(TOKEN, parse_mode=ParseMode.HTML)
