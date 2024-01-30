@@ -2,6 +2,7 @@ from aiogram import Router, Bot, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.media_group import MediaGroupBuilder
 
+from database.request import add_order
 from utils.callbackdata import BranchChoose, ConfirmOrDeleteOffer, GetResponse
 from utils.states import Consult
 from aiogram.types import Message, CallbackQuery
@@ -107,9 +108,11 @@ async def send_query_to_lawyers(callback: types.CallbackQuery, bot: Bot, state: 
     question = data.get('question')
     print(group_id, question, files)
     user_id = callback.from_user.id
+
     # Добавить тут запись в базу данных вопроса и файлов
     if not await check_active_query(callback.from_user.id):
         uniq_id = await generate_unique_identifier()
+        await add_order(order_id=uniq_id, user_id=user_id, lawyer_id=None, order_status='in_search', group_id=group_id)
         kb = InlineKeyboardBuilder()
         kb.button(text='Откликнуться', callback_data=GetResponse(uniq_id=uniq_id, user_id=user_id))
         if files:

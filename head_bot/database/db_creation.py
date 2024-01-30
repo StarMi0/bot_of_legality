@@ -1,20 +1,84 @@
 import asyncio
+import os
+
 import aiomysql
 from utils.config import db_config
 
+my_host = os.getenv('MYSQL_HOST', '77.232.134.200')
+my_user = os.getenv('MYSQL_USER', 'root')
+my_password = os.getenv('DB_ROOT_PASSWORD', '[legality_test]')
+my_database = "urist_bot"
 
-async def create_db():
+
+async def create_tables_if_not_exists():
     try:
-        pool = await aiomysql.create_pool(**db_config)
-        async with pool.acquire() as connection:
-            async with connection.cursor() as cursor:
-                query = "CREATE TABLE IF NOT EXISTS users (user_id INT PRIMARY KEY, role VARCHAR(255), registration_data TEXT)"
-                await cursor.execute(query)
+        connection = await aiomysql.connect(
+            host=my_host,
+            user=my_user,
+            password=my_password,
+            db=my_database
+        )
 
-            await connection.commit()
-    except Exception as e:
-        print(f"Error creating database table: {e}")
+        async with connection.cursor() as cur:
+            # Create users table
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    user_id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_name VARCHAR(255),
+                    registration_date DATE,
+                    role VARCHAR(50) DEFAULT 'user'
+                )
+            """)
+
+            # Create roles table
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS roles (
+                    role VARCHAR(50) PRIMARY KEY
+                )
+            """)
 
 
+            # Create user_info table
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS user_info (
+                    user_id INT PRIMARY KEY,
+                    passport_serial INT,
+                    passport_number INT,
+                    checking_account INT,
+                    FOREIGN KEY (user_id) REFERENCES users (user_id)
+                )
+            """)
 
-asyncio.run(create_db())
+            # Create orders table
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS orders (
+                    order_id VARCHAR(50) PRIMARY KEY,
+                    user_id INT,
+                    lawyer_id INT,
+                    order_status VARCHAR(50),
+                    group_id INT,
+                    FOREIGN KEY (user_id) REFERENCES users (user_id),
+                    FOREIGN KEY (lawyer_id) REFERENCES users (user_id)
+                )
+            """)
+
+            # Create orders_info table
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS orders_info (
+                    order_id VARCHAR(50),
+                    order_text TEXT,
+                    documents_id VARCHAR(50),
+                    order_cost INT,
+                    order_day_start DATE,
+                    order_day_end DATE,
+                    FOREIGN KEY (order_id) REFERENCES orders (order_id)
+                )
+            """)
+
+        # await connection.commit()
+        connection.close()
+        print("Таблица успешно создана или уже существует")
+    except aiomysql.Error as e:
+        print(f"Ошибка при создании таблицы: {e}")
+
+asyncio.run(create_tables_if_not_exists())
