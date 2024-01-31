@@ -17,6 +17,5 @@ class GoToDevelopTime(CallbackData, prefix='go_to_develop_time'):
 
 class ConfirmOrDeleteOffer(CallbackData, prefix='confirmation'):
     order_id: str
-    # user_id: int
-    # lawyer_id: int
+    lawyer_id: int
     confirm: bool

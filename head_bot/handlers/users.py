@@ -1,8 +1,10 @@
+import datetime
+
 from aiogram import Router, Bot, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.media_group import MediaGroupBuilder
 
-from database.request import add_order
+from database.request import add_order, update_table
 from utils.callbackdata import BranchChoose, ConfirmOrDeleteOffer, GetResponse
 from utils.states import Consult
 from aiogram.types import Message, CallbackQuery
@@ -145,14 +147,24 @@ async def check_active_query(user_id):
 
 async def confirm_or_delete_offer(call: CallbackQuery, bot: Bot, callback_data: ConfirmOrDeleteOffer,
                                   state: FSMContext):
-    order_id: callback_data.order_id
-    user_id: callback_data.user_id
-    lawyer_id: callback_data.lawyer_id
-    confirm: callback_data.confirm
+    order_id = callback_data.order_id
+    # user_id = callback_data.user_id
+    lawyer_id = callback_data.lawyer_id
+    confirm = callback_data.confirm
     # тут надо получить из бд айди сообщения из базы юристов и айди сообщения чтобы его удалить (закрыть заказ)
     # если кнопка подтвердить была
     # если отклонить то пишем юристу что ваше предложение отклонено
     if confirm:
+        # chat_id, message_id = await get_order_message_chat_id(order_id)
+        # await bot.delete_message(chat_id=chat_id, message_id=message_id)
+        today_day = datetime.datetime.today().date()
+        await update_table(table_name='orders',
+                           field_values={'lawyer_id': lawyer_id, 'order_status': 'in_progress'},
+                           where_clause=f'order_id={order_id}')
+        # await update_table(table_name='orders_info', field_values={'order_cost': develop_price,
+        #                                                            'order_day_start': today_day,
+        #                                                            'order_day_end': today_day + develop_time },
+        #                    where_clause=f'order_id={order_id}')
         await bot.send_message(chat_id=lawyer_id, text='Ваше предложение приняли.')
     else:
         await bot.send_message(chat_id=lawyer_id, text='Ваше предложение отклонили.')

@@ -76,9 +76,11 @@ async def send_offer_to_client(call: CallbackQuery, bot: Bot, state: FSMContext)
     # Ниже получаем из бд инфу по юристу и суем ее в сообщение (а че там кроме рейтинга)
     lawyer_info = None  # await get_lawyer_info(lawyer_id)
     kb.button(text='Принять',
-              callback_data=ConfirmOrDeleteOffer(order_id=order_id, confirm=True))
+              callback_data=ConfirmOrDeleteOffer(order_id=order_id,
+                                                 lawyer_id=lawyer_id, confirm=True))
     kb.button(text='Отклонить',
-              callback_data=ConfirmOrDeleteOffer(order_id=order_id, confirm=False))
+              callback_data=ConfirmOrDeleteOffer(order_id=order_id,
+                                                 lawyer_id=lawyer_id, confirm=False))
     message_text = f'Предложение по вашему заказу:\n' \
                    f'Сроки: {develop_time}\n' \
                    f'Цена: {develop_price}\n' \
