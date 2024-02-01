@@ -14,3 +14,9 @@ select_service_kb = select_service.as_markup()
 
 
 
+async def get_main_user_kb():
+    main_kb = InlineKeyboardBuilder()
+    main_kb.button(text="Заказать услугу", callback_data='get_select_service')
+    main_kb.button(text="Отправить сообщение исполнителю", callback_data='get_active_orders')
+    main_kb.adjust(1)
+    return main_kb.as_markup()

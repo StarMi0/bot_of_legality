@@ -7,7 +7,7 @@ from utils.config import db_config
 my_host = os.getenv('MYSQL_HOST', '77.232.134.200')
 my_user = os.getenv('MYSQL_USER', 'root')
 my_password = os.getenv('DB_ROOT_PASSWORD', '[legality_test]')
-my_database = "urist_bot"
+my_database = "mysql"
 
 
 async def create_tables_if_not_exists():
@@ -21,19 +21,15 @@ async def create_tables_if_not_exists():
 
         async with connection.cursor() as cur:
             # Create users table
+            await cur.execute("""CREATE DATABASE IF NOT EXISTS URIST_BOT""")
+
+            await cur.execute("""USE URIST_BOT""")
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS users (
-                    user_id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id BIGINT PRIMARY KEY,
                     user_name VARCHAR(255),
                     registration_date DATE,
                     role VARCHAR(50) DEFAULT 'user'
-                )
-            """)
-
-            # Create roles table
-            await cur.execute("""
-                CREATE TABLE IF NOT EXISTS roles (
-                    role VARCHAR(50) PRIMARY KEY
                 )
             """)
 
@@ -41,7 +37,7 @@ async def create_tables_if_not_exists():
             # Create user_info table
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS user_info (
-                    user_id INT PRIMARY KEY,
+                    user_id BIGINT PRIMARY KEY,
                     passport_serial INT,
                     passport_number INT,
                     checking_account INT,
@@ -53,10 +49,10 @@ async def create_tables_if_not_exists():
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
                     order_id VARCHAR(50) PRIMARY KEY,
-                    user_id INT,
-                    lawyer_id INT,
+                    user_id BIGINT,
+                    lawyer_id BIGINT,
                     order_status VARCHAR(50),
-                    group_id INT,
+                    group_id BIGINT,
                     FOREIGN KEY (user_id) REFERENCES users (user_id),
                     FOREIGN KEY (lawyer_id) REFERENCES users (user_id)
                 )
@@ -68,9 +64,19 @@ async def create_tables_if_not_exists():
                     order_id VARCHAR(50),
                     order_text TEXT,
                     documents_id VARCHAR(50),
-                    order_cost INT,
+                    order_cost BIGINT,
                     order_day_start DATE,
                     order_day_end DATE,
+                    FOREIGN KEY (order_id) REFERENCES orders (order_id)
+                )
+            """)
+
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS offers (
+                    order_id VARCHAR(50),
+                    lawyer_id BIGINT,
+                    order_cost BIGINT,
+                    develop_time BIGINT,
                     FOREIGN KEY (order_id) REFERENCES orders (order_id)
                 )
             """)

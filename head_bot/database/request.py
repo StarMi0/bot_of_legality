@@ -9,7 +9,7 @@ from aiomysql import Connection
 my_host = os.getenv('MYSQL_HOST', '77.232.134.200')
 my_user = os.getenv('MYSQL_USER', 'root')
 my_password = os.getenv('DB_ROOT_PASSWORD', '[legality_test]')
-my_database = "urist_bot"
+my_database = "URIST_BOT"
 
 
 async def get_connection() -> Connection:
@@ -97,7 +97,7 @@ async def get_user_role(user_id: int) -> str | None:
         print(role[0] if role else None)
         return role[0] if role else None
     except aiomysql.Error as e:
-        print(f"Ошибка проверки админов: {e}")
+        print(f"Ошибка получения роли пользователя: {e}")
     return None
 
 
@@ -166,8 +166,35 @@ async def get_order_additional_info_by_order_id(order_id: str) -> tuple | None:
         print(f"Ошибка получения дополнительной информации по заказу: {e}")
     return None
 
+async def get_active_order(user_id: int) -> str | None:
+    try:
+        connection = await get_connection()
+        async with connection.cursor() as cur:
+            await cur.execute(
+                f"SELECT order_id"
+                f"FROM orders WHERE user_id = {user_id}")
+            order_id = await cur.fetchone()
 
+        connection.close()
+        return order_id[0] if order_id else None
+    except aiomysql.Error as e:
+        print(f"Ошибка получения дополнительной информации по заказу: {e}")
+    return None
 
+async def get_active_order_lawyer_id(user_id: int)  -> int | None:
+    try:
+        connection = await get_connection()
+        async with connection.cursor() as cur:
+            await cur.execute(
+                f"SELECT lawyer_id"
+                f"FROM orders WHERE user_id = {user_id}")
+            lawyer_id = await cur.fetchone()
+
+        connection.close()
+        return lawyer_id[0] if lawyer_id else None
+    except aiomysql.Error as e:
+        print(f"Ошибка получения ID сполнителя: {e}")
+    return None
 async def update_table(table_name: str, field_values: dict, where_clause: str):
     try:
         connection = await get_connection()
@@ -192,4 +219,36 @@ async def update_table(table_name: str, field_values: dict, where_clause: str):
         print(f"Ошибка добавления пользователя: {e}")
     return False
 
-asyncio.run(update_table('users', {'user_name': 'Oleg'}, 'user_id=1111'))
+
+async def add_offer(order_id: str, lawyer_id: int, order_cost: int, develop_time: int):
+    try:
+        connection = await get_connection()
+
+        async with connection.cursor() as cur:
+            await cur.execute("""
+                INSERT INTO offers (order_id, lawyer_id, order_cost, develop_time)
+                VALUES (%s, %s, %s, %s)
+            """, (order_id, lawyer_id, order_cost, develop_time))
+
+        await connection.commit()
+        connection.close()
+    except Exception as e:
+        print(f"Ошибка добавления предложения: {e}")
+
+async def get_offers_by_order_id(order_id: str):
+    try:
+        connection = await get_connection()
+
+        async with connection.cursor() as cur:
+            await cur.execute("""
+                SELECT * FROM offers WHERE order_id = %s
+            """, (order_id,))
+            offers = await cur.fetchone()
+
+        connection.close()
+        return offers
+    except Exception as e:
+        print(f"Ошибка получения предложения: {e}")
+
+
+# asyncio.run(update_table('users', {'user_name': 'Oleg'}, 'user_id=1111'))

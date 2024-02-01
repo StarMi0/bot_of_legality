@@ -87,3 +87,6 @@ async def send_offer_to_client(call: CallbackQuery, bot: Bot, state: FSMContext)
                    f'Рейтинг юриста: {lawyer_info}\n'
 
     await bot.send_message(chat_id=original_user_id, text=message_text, reply_markup=kb.as_markup())
+
+
+# async def g
