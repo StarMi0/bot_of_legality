@@ -3,6 +3,8 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+from database.request import add_offer
 from utils.callbackdata import BranchChoose, GetResponse, ConfirmOrDeleteOffer, GoToDevelopTime
 from utils.states import Consult
 
@@ -13,8 +15,6 @@ async def process_response(call: CallbackQuery, bot: Bot, callback_data: GetResp
     await call.answer()
     original_user_id = callback_data.user_id
     order_id = callback_data.uniq_id
-    print(original_user_id, order_id)
-
     # Получаем данные по заказу из бд: текст, файлы
     order_text, files = None, None#await get_order_text_files(order_id, original_user_id)
     # # Отправляем юристу и говорим что он откликнулся на этот заказ
@@ -85,7 +85,7 @@ async def send_offer_to_client(call: CallbackQuery, bot: Bot, state: FSMContext)
                    f'Сроки: {develop_time}\n' \
                    f'Цена: {develop_price}\n' \
                    f'Рейтинг юриста: {lawyer_info}\n'
-
+    await add_offer(order_id, lawyer_id, order_cost=develop_price, develop_time=develop_time)
     await bot.send_message(chat_id=original_user_id, text=message_text, reply_markup=kb.as_markup())
 
 

@@ -6,7 +6,7 @@ import sys
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from loguru import logger
-
+from database.db_creation import create_tables_if_not_exists
 import handlers
 from handlers.register_routers import register_users, register_lawyers
 
@@ -26,7 +26,7 @@ async def main() -> None:
     )
     TOKEN = os.environ["BOT_TOKEN"]
     # All handlers should be attached to the Router (or Dispatcher)
-
+    await create_tables_if_not_exists()
     dp = Dispatcher()
     await register_lawyers()
     await register_users()

@@ -6,6 +6,8 @@ from typing import List
 import aiomysql
 from aiomysql import Connection
 
+from utils.config import db_config
+
 my_host = os.getenv('MYSQL_HOST', '77.232.134.200')
 my_user = os.getenv('MYSQL_USER', 'root')
 my_password = os.getenv('DB_ROOT_PASSWORD', '[legality_test]')
@@ -14,11 +16,10 @@ my_database = "URIST_BOT"
 
 async def get_connection() -> Connection:
         connection = await aiomysql.connect(
-            host=my_host,
-            port=3306,
-            user=my_user,
-            password=my_password,
-            db=my_database
+            host=db_config.get('host'),
+            user=db_config.get('user'),
+            password=db_config.get('password'),
+            db='URIST_BOT'
         )
         return connection
 # Функция для проверки подключения к базе данных
@@ -116,22 +117,24 @@ async def add_order(order_id: str, user_id: int, lawyer_id: int | None, order_st
         print(f"Ошибка добавления пользователя: {e}")
     return False
 
-async def add_order_info(order_id: str, order_text: str, documents_id: str, order_cost: int,
-                         order_day_start: datetime.date, order_day_end: datetime.date):
+async def add_order_info(order_id: str, order_text: str, documents_id: str, order_cost: int | None,
+                         order_day_start: datetime.date | None, order_day_end: datetime.date | None, message_id: str,
+                         group_id: int):
     try:
         connection = await get_connection()
 
         async with connection.cursor() as cur:
-            await cur.execute("INSERT INTO orders (order_id, order_text, documents_id, order_cost, order_day_start, "
-                              "order_day_end)"
-                              "VALUES (%s, %s, %s, %s, %s, %s)",
-                              (order_id, order_text, documents_id, order_cost, order_day_start, order_day_end))
+            await cur.execute("INSERT INTO orders_info (order_id, order_text, documents_id, order_cost, order_day_start, "
+                              "order_day_end, message_id, group_id)"
+                              "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                              (order_id, order_text, documents_id, order_cost, order_day_start, order_day_end,
+                               message_id, group_id))
 
         await connection.commit()
         connection.close()
         return True
     except aiomysql.Error as e:
-        print(f"Ошибка добавления пользователя: {e}")
+        print(f"Ошибка внесения дополнительной информации: {e}")
     return False
 
 
@@ -155,8 +158,8 @@ async def get_order_additional_info_by_order_id(order_id: str) -> tuple | None:
         connection = await get_connection()
         async with connection.cursor() as cur:
             await cur.execute(
-                f"SELECT order_text, documents_id, order_cost, order_day_start, order_day_end"
-                f"FROM orders_info WHERE order_id = {order_id}")
+                f"SELECT order_text, documents_id, order_cost, order_day_start, order_day_end, message_id, group_id"
+                f" FROM orders_info WHERE order_id = '{order_id}'")
             info = await cur.fetchone()
 
         connection.close()
@@ -206,6 +209,7 @@ async def update_table(table_name: str, field_values: dict, where_clause: str):
 
             # Construct SQL query
             if where_clause:
+                print(where_clause)
                 sql = f"UPDATE {table_name} SET {set_clause} WHERE {where_clause}"
             else:
                 sql = f"UPDATE {table_name} SET {set_clause}"
@@ -241,7 +245,7 @@ async def get_offers_by_order_id(order_id: str):
 
         async with connection.cursor() as cur:
             await cur.execute("""
-                SELECT * FROM offers WHERE order_id = %s
+                SELECT lawyer_id, order_cost, develop_time FROM offers WHERE order_id = %s
             """, (order_id,))
             offers = await cur.fetchone()
 

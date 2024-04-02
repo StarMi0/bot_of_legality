@@ -4,19 +4,16 @@ import os
 import aiomysql
 from utils.config import db_config
 
-my_host = os.getenv('MYSQL_HOST', '77.232.134.200')
-my_user = os.getenv('MYSQL_USER', 'root')
-my_password = os.getenv('DB_ROOT_PASSWORD', '[legality_test]')
-my_database = "mysql"
+
 
 
 async def create_tables_if_not_exists():
     try:
         connection = await aiomysql.connect(
-            host=my_host,
-            user=my_user,
-            password=my_password,
-            db=my_database
+            host=db_config.get('host'),
+            user=db_config.get('user'),
+            password=db_config.get('password'),
+            db=db_config.get('database')
         )
 
         async with connection.cursor() as cur:
@@ -26,7 +23,7 @@ async def create_tables_if_not_exists():
             await cur.execute("""USE URIST_BOT""")
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS users (
-                    user_id BIGINT PRIMARY KEY,
+                    user_id VARCHAR(255) PRIMARY KEY,
                     user_name VARCHAR(255),
                     registration_date DATE,
                     role VARCHAR(50) DEFAULT 'user'
@@ -37,10 +34,10 @@ async def create_tables_if_not_exists():
             # Create user_info table
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS user_info (
-                    user_id BIGINT PRIMARY KEY,
-                    passport_serial INT,
-                    passport_number INT,
-                    checking_account INT,
+                    user_id VARCHAR(255) PRIMARY KEY,
+                    passport_serial VARCHAR(255),
+                    passport_number VARCHAR(255),
+                    checking_account VARCHAR(255),
                     FOREIGN KEY (user_id) REFERENCES users (user_id)
                 )
             """)
@@ -49,10 +46,10 @@ async def create_tables_if_not_exists():
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
                     order_id VARCHAR(50) PRIMARY KEY,
-                    user_id BIGINT,
-                    lawyer_id BIGINT,
+                    user_id VARCHAR(50),
+                    lawyer_id VARCHAR(50),
                     order_status VARCHAR(50),
-                    group_id BIGINT,
+                    group_id VARCHAR(255),
                     FOREIGN KEY (user_id) REFERENCES users (user_id),
                     FOREIGN KEY (lawyer_id) REFERENCES users (user_id)
                 )
@@ -64,9 +61,11 @@ async def create_tables_if_not_exists():
                     order_id VARCHAR(50),
                     order_text TEXT,
                     documents_id VARCHAR(50),
-                    order_cost BIGINT,
+                    order_cost VARCHAR(255),
                     order_day_start DATE,
                     order_day_end DATE,
+                    message_id VARCHAR(50),
+                    group_id VARCHAR(50),
                     FOREIGN KEY (order_id) REFERENCES orders (order_id)
                 )
             """)
@@ -74,9 +73,9 @@ async def create_tables_if_not_exists():
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS offers (
                     order_id VARCHAR(50),
-                    lawyer_id BIGINT,
-                    order_cost BIGINT,
-                    develop_time BIGINT,
+                    lawyer_id VARCHAR(50),
+                    order_cost VARCHAR(50),
+                    develop_time VARCHAR(50),
                     FOREIGN KEY (order_id) REFERENCES orders (order_id)
                 )
             """)
