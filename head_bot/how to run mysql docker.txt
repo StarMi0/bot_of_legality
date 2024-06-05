@@ -1,0 +1,1 @@
+docker run -d -p 3306:3306 --name legality_test -e MYSQL_ROOT_PASSWORD=[legality_test] mysql
