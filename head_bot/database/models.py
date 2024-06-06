@@ -36,7 +36,7 @@ class EducationDocument(Base):
     __tablename__ = 'education_documents'
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(String(255), ForeignKey('users.user_id'))
-    document = Column(BLOB)
+    document = Column(TEXT)
     user = relationship("User")
 
 
@@ -55,7 +55,7 @@ class OrderInfo(Base):
     __tablename__ = 'orders_info'
     order_id = Column(String(255), ForeignKey('orders.order_id'), primary_key=True)
     order_text = Column(TEXT)
-    documents_id = Column(String(255))
+    documents_id = Column(TEXT)
     order_cost = Column(String(255))
     order_day_start = Column(DATE)
     order_day_end = Column(DATE)
