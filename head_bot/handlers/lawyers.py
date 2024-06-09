@@ -2,9 +2,12 @@ from aiogram import Router, Bot, F
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
+from aiogram.utils.media_group import MediaGroupBuilder
 
-from database.request import add_offer
+from database.request import add_offer, get_active_order_by_lawyer, get_order_additional_info_by_order_id, \
+    get_order_info_by_order_id
+from keyboard.kb import get_main_lawyer_kb
 from utils.callbackdata import BranchChoose, GetResponse, ConfirmOrDeleteOffer, GoToDevelopTime
 from utils.states import Consult
 
@@ -16,7 +19,7 @@ async def process_response(call: CallbackQuery, bot: Bot, callback_data: GetResp
     original_user_id = callback_data.user_id
     order_id = callback_data.uniq_id
     # Получаем данные по заказу из бд: текст, файлы
-    order_text, files = None, None#await get_order_text_files(order_id, original_user_id)
+    order_text, files = None, None  # await get_order_text_files(order_id, original_user_id)
     # # Отправляем юристу и говорим что он откликнулся на этот заказ
     kb = InlineKeyboardBuilder()
     kb.button(text='Продолжить', callback_data=GoToDevelopTime(order_id=order_id, original_user_id=original_user_id))
@@ -33,34 +36,41 @@ async def go_to_develop_time_lawyer(call: CallbackQuery, callback_data: GoToDeve
     order_id = callback_data.order_id
     await state.update_data(original_user_id=original_user_id, order_id=order_id)
     await state.set_state(Consult.develop_time)
-    await bot.send_message(chat_id=call.from_user.id, text='Введите примерные сроки работы:')
+    await bot.send_message(chat_id=call.from_user.id, text='Введите сроки работы в *днях*:', parse_mode='Markdown')
 
 
 async def get_develop_time(message: Message, bot: Bot, state: FSMContext):
     develop_time = message.text
-    kb = InlineKeyboardBuilder()
-    kb.button(text='Да', callback_data='go_to_price_lawyer')
-    await bot.send_message(chat_id=message.from_user.id, text=f'Время работы над заказом: {develop_time}\n'
-                                                              f'Нажмите Да, если верно,'
-                                                              f'пришлите правильное время если нет.',
-                           reply_markup=kb.as_markup())
-    await state.update_data(develop_time=develop_time)
+    if develop_time.isdigit():
+        kb = InlineKeyboardBuilder()
+        kb.button(text='Да', callback_data='go_to_price_lawyer')
+        await bot.send_message(chat_id=message.from_user.id, text=f'Время работы над заказом: {develop_time}\n'
+                                                                  f'Нажмите Да, если верно,'
+                                                                  f'пришлите правильное время если нет.',
+                               reply_markup=kb.as_markup())
+        await state.update_data(develop_time=develop_time)
+    else:
+        await message.answer(text='Введите число в днях.')
 
 
 async def confirm_develop_time(call: CallbackQuery, bot: Bot, state: FSMContext):
     await call.answer()
     await state.set_state(Consult.price)
-    await bot.send_message(chat_id=call.from_user.id, text='Введите точную цену работы:')
+    await bot.send_message(chat_id=call.from_user.id, text='Введите точную цену работы в рублях без пробелов:')
 
 
 async def get_develop_price(message: Message, bot: Bot, state: FSMContext):
     develop_price = message.text
-    kb = InlineKeyboardBuilder()
-    kb.button(text='Да', callback_data='send_offer_to_client')
-    await bot.send_message(chat_id=message.from_user.id, text=f'Цена работы: {develop_price}\n'
-                                                              f'Нажмите Да, если верно,'
-                                                              f'пришлите правильную цену.', reply_markup=kb.as_markup())
-    await state.update_data(develop_price=develop_price)
+    if develop_price.isdigit():
+        kb = InlineKeyboardBuilder()
+        kb.button(text='Да', callback_data='send_offer_to_client')
+        await bot.send_message(chat_id=message.from_user.id, text=f'Цена работы: {develop_price}\n'
+                                                                  f'Нажмите Да, если верно,'
+                                                                  f'пришлите правильную цену.',
+                               reply_markup=kb.as_markup())
+        await state.update_data(develop_price=develop_price)
+    else:
+        await message.answer(text='Введите число в рублях.')
 
 
 async def send_offer_to_client(call: CallbackQuery, bot: Bot, state: FSMContext):
@@ -89,4 +99,77 @@ async def send_offer_to_client(call: CallbackQuery, bot: Bot, state: FSMContext)
     await bot.send_message(chat_id=original_user_id, text=message_text, reply_markup=kb.as_markup())
 
 
-# async def g
+async def get_active_orders(call: CallbackQuery, bot: Bot, state: FSMContext):
+    await call.answer()
+    orders = await get_active_order_by_lawyer(str(call.from_user.id))
+    kb = InlineKeyboardBuilder()
+    for i, order in enumerate(orders):
+        kb.button(text=f'{i + 1}', callback_data=f'order_{order}')
+    text = 'Выберите нужный заказ:'
+    await bot.send_message(chat_id=call.from_user.id, text=text, reply_markup=kb.as_markup())
+
+
+async def send_order_info(call: CallbackQuery, bot: Bot, state: FSMContext):
+    order_id = call.data.split('_')[-1]
+    order_text, documents_ids, cost, day_start, day_end, _, _, = await get_order_additional_info_by_order_id(order_id)
+    text = (f'{order_text}\n'
+            f'Цена: {cost}'
+            f'Дата начала: {day_start}'
+            f'До: {day_end}')
+    docs = MediaGroupBuilder()
+    for d in documents_ids.split(','):
+        docs.add_document(d)
+    kb = InlineKeyboardBuilder()
+    kb.button(text='Главное меню', callback_data='main_lawyer')
+    kb.button(text='Написать заказчику', callback_data=f'question_lawyer_{order_id}')
+    kb.button(text='Закрыть заказ', callback_data=f'close_order_{order_id}')
+    await call.message.answer(text=text)
+    await bot.send_media_group(chat_id=call.from_user.id, media=docs.build())
+
+
+async def send_main_lawyer_kb(call: CallbackQuery, bot: Bot, state: FSMContext):
+    kb = await get_main_lawyer_kb()
+    await bot.send_message(call.from_user.id, f"<b>Hello, {call.from_user.first_name}! "
+                                                 f"\nТут будет приветственное сообщение!</b>",
+                           reply_markup=kb)
+
+
+async def on_lawyer_client_chat_start(call: CallbackQuery, bot: Bot, state: FSMContext):
+    from main import dp
+    kb = ReplyKeyboardBuilder()
+    kb.button(text='Закончить чат')
+    order_id = call.data.split('_')[-1]
+    user_id, lawyer_id, status = await get_order_info_by_order_id(order_id)
+    user_state = await dp.fsm.get_context(bot=bot, chat_id=user_id, user_id=user_id)
+    lawyer_state = await dp.fsm.get_context(bot=bot, chat_id=lawyer_id, user_id=lawyer_id)
+    await user_state.set_state(Consult.lawyer_client_chat)
+    await lawyer_state.set_state(Consult.lawyer_client_chat)
+    await lawyer_state.update_data(ORDER_ID=order_id)
+    await user_state.update_data(ORDER_ID=order_id)
+    await bot.send_message(chat_id=lawyer_id, text=f'Начат чат по поводу заказа {order_id}',
+                           reply_markup=kb.as_markup(resize_keyboard=True))
+    await bot.send_message(chat_id=user_id, text=f'Начат чат по поводу заказа {order_id}',
+                           reply_markup=kb.as_markup(resize_keyboard=True))
+
+
+async def on_end_order(call: CallbackQuery, bot: Bot, state: FSMContext):
+    order_id = call.data.split('_')[-1]
+    await state.update_data(ORDER_ID=order_id)
+    kb = InlineKeyboardBuilder()
+    kb.button(text='Отмена', callback_data='main_lawyer')
+    kb.button(text='Закрыть', callback_data=f'confirm_close_{order_id}')
+    text = 'Вы уверены что хотите закрыть заказ?'
+    await call.message.answer(text=text, reply_markup=kb.as_markup())
+
+
+async def after_confirm_close(call: CallbackQuery, bot: Bot, state: FSMContext):
+    text = 'Высылайте всю информацию по заказу - документы, текст.'
+    await state.set_state(Consult.get_end_info)
+    await call.message.answer(text=text)
+
+
+async def on_get_end_info(message: Message, bot: Bot, state: FSMContext):
+    if message.document:
+        pass
+    elif message.text:
+        pass

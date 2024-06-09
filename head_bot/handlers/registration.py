@@ -80,6 +80,7 @@ async def process_education(message: Message | CallbackQuery, bot: Bot, state: F
     await bot.send_message(chat_id=message.from_user.id, text=text, reply_markup=kb.as_markup())
     await state.set_state(Consult.education_documents)
 
+
 async def add_lawyer_to_db(call: CallbackQuery, bot: Bot, state: FSMContext):
     await call.answer()
     data = await state.get_data()
@@ -99,7 +100,7 @@ async def add_lawyer_to_db(call: CallbackQuery, bot: Bot, state: FSMContext):
 async def process_documents(message: Message, bot: Bot):
     file = message.document.file_id
 
-    file_info = await bot.get_file(file)
-    content = await bot.download_file(file_info.file_path)
-    await add_document(message.from_user.id, content)
+    # file_info = await bot.get_file(file)
+    # content = await bot.download_file(file_info.file_path)
+    await add_document(message.from_user.id, file)
     await bot.send_message(chat_id=message.from_user.id, text='Документ добавлен!')

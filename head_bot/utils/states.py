@@ -13,5 +13,6 @@ class Consult(StatesGroup):
     date_birth = State()
     education = State()
     education_documents = State()
-
+    lawyer_client_chat = State()
+    get_end_info = State()
 # class OrderInfoLawyer(StatesGroup):

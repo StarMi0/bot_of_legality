@@ -1,17 +1,17 @@
 import datetime
-from typing import List
+from typing import List, Optional, Tuple
 import aiomysql
 from loguru import logger
 from sqlalchemy import AsyncAdaptedQueuePool, select, update
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
-from database.models import User, UserInfo, Order, OrderInfo, Offer, EducationDocument, LawyerInfo
-from utils.config import bot_db, my_password, my_user, my_host
+from database.models import User, UserInfo, Order, OrderInfo, Offer, EducationDocument, LawyerInfo, OrderDocuments
+from utils.config import bot_db, my_password, my_user, my_host, DATABASE_URL
 
 
 async def get_connection():
     engine = create_async_engine(
-        f'mysql+aiomysql://{my_user}:{my_password}@{my_host}/{bot_db}',
+        DATABASE_URL,
         poolclass=AsyncAdaptedQueuePool,  # Указываем класс пула соединений
         pool_size=5,  # Размер пула соединений (по умолчанию)
         max_overflow=10,  # Максимальное количество временных соединений, создаваемых при перегрузке
@@ -27,18 +27,19 @@ async def user_exist(user_id: str) -> bool:
 
     async with AsyncSession(engine) as session:
         async with session.begin():
-            result = await session.execute(select(User).filter_by(user_id=user_id))
+            result = await session.execute(select(User).filter_by(user_id=str(user_id)))
             user = result.scalar_one_or_none()
             return user is not None
 
 
-async def add_lawyer_info(user_id: int, education: str, education_documents: str):
+async def add_lawyer_info(user_id: str, education: str, education_documents: str):
     engine = await get_connection()
 
     try:
         async with AsyncSession(engine) as session:
             async with session.begin():
-                new_lawyer_info = LawyerInfo(user_id=user_id, education=education, education_documents=education_documents)
+                new_lawyer_info = LawyerInfo(user_id=str(user_id), education=education,
+                                             education_documents=education_documents)
                 session.add(new_lawyer_info)
 
             await session.commit()
@@ -50,7 +51,7 @@ async def add_lawyer_info(user_id: int, education: str, education_documents: str
         await engine.dispose()
 
 
-async def add_user(user_id: int, user_name: str, user_fio: str, user_date_birth: str, role: str):
+async def add_user(user_id: str, user_name: str, user_fio: str, user_date_birth: str, role: str):
     engine = await get_connection()
 
     try:
@@ -58,7 +59,7 @@ async def add_user(user_id: int, user_name: str, user_fio: str, user_date_birth:
             async with session.begin():
                 # Создаем новый экземпляр модели User
                 new_user = User(
-                    user_id=user_id,
+                    user_id=str(user_id),
                     user_name=user_name,
                     user_fio=user_fio,
                     user_date_birth=user_date_birth,
@@ -78,29 +79,6 @@ async def add_user(user_id: int, user_name: str, user_fio: str, user_date_birth:
         await engine.dispose()
 
 
-async def add_lawyer_info(user_id: int, education: str, education_documents: str):
-    engine = await get_connection()
-
-    try:
-        async with AsyncSession(engine) as session:
-            async with session.begin():
-                # Создаем новый экземпляр модели LawyerInfo
-                new_lawyer_info = LawyerInfo(
-                    user_id=user_id,
-                    education=education,
-                    education_documents=education_documents
-                )
-                # Добавляем информацию о юристе в сессию
-                session.add(new_lawyer_info)
-
-            # Коммитим транзакцию
-            await session.commit()
-            return True
-    except Exception as e:
-        logger.error(f"Ошибка добавления информации о юристе: {e}")
-        return False
-    finally:
-        await engine.dispose()
 
 
 async def get_admins() -> List[str]:
@@ -123,7 +101,7 @@ async def get_user_role(user_id: str) -> str | None:
     try:
         async with AsyncSession(engine) as session:
             async with session.begin():
-                result = await session.execute(select(User.role).filter_by(user_id=user_id))
+                result = await session.execute(select(User.role).filter_by(user_id=str(user_id)))
                 role = result.scalar_one_or_none()
                 return role if role else None
     except Exception as e:
@@ -131,7 +109,7 @@ async def get_user_role(user_id: str) -> str | None:
         return None
 
 
-async def add_order(order_id: str, user_id: int, lawyer_id: str | None, order_status: str, group_id: str) -> int:
+async def add_order(order_id: str, user_id: str, lawyer_id: str | None, order_status: str, group_id: str) -> int:
     engine = await get_connection()
 
     try:
@@ -149,7 +127,7 @@ async def add_order(order_id: str, user_id: int, lawyer_id: str | None, order_st
                 # Если активного заказа нет, добавляем новый заказ
                 new_order = Order(
                     order_id=order_id,
-                    user_id=user_id,
+                    user_id=str(user_id),
                     lawyer_id=lawyer_id,
                     order_status=order_status,
                     group_id=group_id
@@ -165,8 +143,9 @@ async def add_order(order_id: str, user_id: int, lawyer_id: str | None, order_st
         await engine.dispose()
 
 
-async def add_order_info(order_id: str, order_text: str, documents_id: str, order_cost: str | None,
-                         order_day_start: datetime.date | None, order_day_end: datetime.date | None, message_id: str,
+async def add_order_info(order_id: str, order_text: str, documents_id: list[str], order_cost: Optional[str],
+                         order_day_start: Optional[datetime.date], order_day_end: Optional[datetime.date],
+                         message_id: str,
                          group_id: str) -> bool:
     engine = await get_connection()
 
@@ -176,7 +155,6 @@ async def add_order_info(order_id: str, order_text: str, documents_id: str, orde
                 new_order_info = OrderInfo(
                     order_id=order_id,
                     order_text=order_text,
-                    documents_id=documents_id,
                     order_cost=order_cost,
                     order_day_start=order_day_start,
                     order_day_end=order_day_end,
@@ -184,6 +162,14 @@ async def add_order_info(order_id: str, order_text: str, documents_id: str, orde
                     group_id=group_id
                 )
                 session.add(new_order_info)
+
+                # Добавление документов
+                for doc_id in documents_id:
+                    new_order_document = OrderDocuments(
+                        order_id=order_id,
+                        document_id=doc_id
+                    )
+                    session.add(new_order_document)
 
             await session.commit()
             return True
@@ -208,7 +194,7 @@ async def get_order_info_by_order_id(order_id: str) -> tuple | None:
         return None
 
 
-async def get_order_additional_info_by_order_id(order_id: str) -> tuple | None:
+async def get_order_additional_info_by_order_id(order_id: str) -> Optional[Tuple]:
     engine = await get_connection()
 
     try:
@@ -216,18 +202,36 @@ async def get_order_additional_info_by_order_id(order_id: str) -> tuple | None:
             async with session.begin():
                 result = await session.execute(
                     select(
-                        OrderInfo.order_text, OrderInfo.documents_id, OrderInfo.order_cost,
-                        OrderInfo.order_day_start, OrderInfo.order_day_end, OrderInfo.message_id,
-                        OrderInfo.group_id
-                    ).filter_by(order_id=order_id)
+                        OrderInfo.order_text,
+                        OrderInfo.order_cost,
+                        OrderInfo.order_day_start,
+                        OrderInfo.order_day_end,
+                        OrderInfo.message_id,
+                        OrderInfo.group_id,
+                        OrderDocuments.document_id
+                    ).join(OrderDocuments, OrderInfo.order_id == OrderDocuments.order_id)
+                    .filter(OrderInfo.order_id == order_id)
                 )
-                info = result.one_or_none()
 
-        return info
+                info = result.all()
+                if not info:
+                    return None
+
+                order_info = info[0]
+                documents = [row.document_id for row in info]
+
+                return (
+                    order_info.order_text,
+                    documents,
+                    order_info.order_cost,
+                    order_info.order_day_start,
+                    order_info.order_day_end,
+                    order_info.message_id,
+                    order_info.group_id
+                )
     except Exception as e:
         print(f"Ошибка получения дополнительной информации по заказу: {e}")
         return None
-
 
 async def get_active_order(user_id: str) -> str | None:
     engine = await get_connection()
@@ -236,7 +240,7 @@ async def get_active_order(user_id: str) -> str | None:
         async with AsyncSession(engine) as session:
             async with session.begin():
                 result = await session.execute(
-                    select(Order.order_id).filter_by(user_id=user_id)
+                    select(Order.order_id).filter_by(user_id=str(user_id))
                 )
                 order_id = result.scalar_one_or_none()
 
@@ -246,6 +250,23 @@ async def get_active_order(user_id: str) -> str | None:
         return None
 
 
+async def get_active_order_by_lawyer(user_id: str) -> list:
+    engine = await get_connection()
+
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(Order.order_id).where(Order.lawyer_id == str(user_id), Order.order_status != 'done')
+                )
+                order_id = result.fetchall()
+
+        return [i for i in order_id]
+    except Exception as e:
+        print(f"Ошибка получения активного заказа: {e}")
+        return []
+
+
 async def get_active_order_lawyer_id(user_id: str) -> str | None:
     engine = await get_connection()
 
@@ -253,7 +274,7 @@ async def get_active_order_lawyer_id(user_id: str) -> str | None:
         async with AsyncSession(engine) as session:
             async with session.begin():
                 result = await session.execute(
-                    select(Order.lawyer_id).filter_by(user_id=user_id)
+                    select(Order.lawyer_id).filter_by(user_id=str(user_id))
                 )
                 lawyer_id = result.scalar_one_or_none()
 
@@ -285,7 +306,7 @@ async def update_table(table, field_values: dict, where_clause: dict):
     return False
 
 
-async def add_offer(order_id: str, lawyer_id: int, order_cost: int, develop_time: int):
+async def add_offer(order_id: str, lawyer_id: str, order_cost: int, develop_time: int):
     engine = await get_connection()
 
     try:
@@ -293,7 +314,7 @@ async def add_offer(order_id: str, lawyer_id: int, order_cost: int, develop_time
             async with session.begin():
                 new_offer = Offer(
                     order_id=order_id,
-                    lawyer_id=lawyer_id,
+                    lawyer_id=str(lawyer_id),
                     order_cost=order_cost,
                     develop_time=develop_time
                 )
@@ -327,7 +348,7 @@ async def add_document(user_id, document_data):
     try:
         async with AsyncSession(engine) as session:
             async with session.begin():
-                new_document = EducationDocument(user_id=user_id, document=document_data)
+                new_document = EducationDocument(user_id=str(user_id), document=document_data)
                 session.add(new_document)
 
             await session.commit()
@@ -345,7 +366,7 @@ async def get_document(user_id):
             async with session.begin():
                 result = await session.execute(
                     select(EducationDocument.document)
-                    .filter(EducationDocument.user_id == user_id)
+                    .filter(EducationDocument.user_id == str(user_id))
                 )
                 document = result.scalar_one_or_none()
 
@@ -354,4 +375,3 @@ async def get_document(user_id):
         logger.error(f"Ошибка получения файла: {e}")
     finally:
         await engine.dispose()
-

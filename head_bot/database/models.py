@@ -55,13 +55,23 @@ class OrderInfo(Base):
     __tablename__ = 'orders_info'
     order_id = Column(String(255), ForeignKey('orders.order_id'), primary_key=True)
     order_text = Column(TEXT)
-    documents_id = Column(TEXT)
     order_cost = Column(String(255))
     order_day_start = Column(DATE)
     order_day_end = Column(DATE)
     message_id = Column(String(255))
     group_id = Column(String(255))
-    order = relationship("Order")
+
+    order = relationship("Order", back_populates="order_info")
+    documents = relationship("OrderDocuments", back_populates="order_info")
+
+
+class OrderDocuments(Base):
+    __tablename__ = 'orders_documents'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    document_id = Column(String(255))
+    order_id = Column(String(255), ForeignKey('orders.order_id'))
+
+    order_info = relationship("OrderInfo", back_populates="documents")
 
 
 class Offer(Base):
