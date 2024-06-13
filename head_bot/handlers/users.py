@@ -5,12 +5,13 @@ from aiogram.fsm.context import FSMContext
 from aiogram.utils.media_group import MediaGroupBuilder
 
 from database.request import add_order, update_table, get_active_order, get_active_order_lawyer_id, add_user, \
-    add_order_info, get_offers_by_order_id, get_order_additional_info_by_order_id
+    add_order_info, get_offers_by_order_id, get_order_additional_info_by_order_id, add_lawyer_info
+from handlers.registration import choose_role
 from utils.callbackdata import BranchChoose, ConfirmOrDeleteOffer, GetResponse, GetAnswer
 from utils.states import Consult
 from aiogram.types import Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardMarkup, InlineKeyboardButton
-from keyboard.kb import select_service_kb, get_main_user_kb
+from keyboard.kb import select_service_kb, get_main_user_kb, get_main_lawyer_kb
 from utils.utils import check_registration, check_active_query
 from utils.config import group_ID
 
@@ -29,15 +30,15 @@ async def get_start(message: Message, bot: Bot):
     # Проверяет пользователя на наличие регистрации
     user_id = message.from_user.id
     role = await check_registration(user_id)
-    await add_user(message.from_user.id, message.from_user.username, 'user')
+    # await add_user(message.from_user.id, message.from_user.username, 'user')
     if not role:
-
+        await choose_role(message, bot)
         # Если пользователь не зарегистрирован, предлагаем пройти регистрацию
-        reg_builder = InlineKeyboardBuilder()
-        reg_builder.button(text="Регистрация", url="http://yourwebsite.com/register")
-
-        await message.reply("Вы не зарегистрированы. Пройдите регистрацию по ссылке:",
-                            reply_markup=reg_builder.as_markup())
+        # reg_builder = InlineKeyboardBuilder()
+        # reg_builder.button(text="Регистрация", url="http://yourwebsite.com/register")
+        #
+        # await message.reply("Вы не зарегистрированы. Пройдите регистрацию по ссылке:",
+        #                     reply_markup=reg_builder.as_markup())
     else:
         if role == 'user':
             kb = await get_main_user_kb()
@@ -48,6 +49,34 @@ async def get_start(message: Message, bot: Bot):
             pass
         elif role == 'admin':
             pass
+
+
+async def registration_end_user(call: CallbackQuery, bot: Bot, state: FSMContext):
+    await call.answer()
+    data = await state.get_data()
+    user_fio = data.get("FIO")
+    user_date_birth = data.get("DATE")
+    await add_user(user_id=call.from_user.id, user_name=call.from_user.username, user_fio=user_fio,
+                   user_date_birth=user_date_birth, role='user')
+    await state.clear()
+    await send_select_service(call, bot)
+
+
+async def registration_end_lawyer(call: CallbackQuery, bot: Bot, state: FSMContext):
+    await call.answer()
+    data = await state.get_data()
+    education = data.get("EDUCATION")
+    kb = await get_main_lawyer_kb()
+
+    await add_lawyer_info(user_id=call.from_user.id, education=education)
+    await state.clear()
+    await bot.send_message(chat_id=call.from_user.id, text='Главное меню', reply_markup=kb)
+
+
+
+
+
+
 """
 Ветка Юридическая консультация
 """

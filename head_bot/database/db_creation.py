@@ -25,6 +25,8 @@ async def create_tables_if_not_exists():
                 CREATE TABLE IF NOT EXISTS users (
                     user_id VARCHAR(255) PRIMARY KEY,
                     user_name VARCHAR(255),
+                    user_fio VARCHAR(255),
+                    user_date_birth VARCHAR(255),
                     registration_date DATE,
                     role VARCHAR(50) DEFAULT 'user'
                 )
@@ -41,7 +43,24 @@ async def create_tables_if_not_exists():
                     FOREIGN KEY (user_id) REFERENCES users (user_id)
                 )
             """)
-
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS lawyer_info (
+                    user_id VARCHAR(255) PRIMARY KEY,
+                    education VARCHAR(255),
+                    education_documents TEXT,
+                    FOREIGN KEY (user_id) REFERENCES users (user_id)
+                )
+            """)
+            await cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS education_documents (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id VARCHAR(255),
+                    document BLOB,
+                    FOREIGN KEY (user_id) REFERENCES users (user_id)
+                )
+                """
+            )
             # Create orders table
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS orders (

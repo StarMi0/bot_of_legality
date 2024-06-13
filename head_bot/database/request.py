@@ -5,6 +5,7 @@ from typing import List
 
 import aiomysql
 from aiomysql import Connection
+from loguru import logger
 
 from utils.config import db_config
 
@@ -15,26 +16,25 @@ my_database = "URIST_BOT"
 
 
 async def get_connection() -> Connection:
-        connection = await aiomysql.connect(
-            host=db_config.get('host'),
-            user=db_config.get('user'),
-            password=db_config.get('password'),
-            db='URIST_BOT'
-        )
-        return connection
+    connection = await aiomysql.connect(
+        host=db_config.get('host'),
+        user=db_config.get('user'),
+        password=db_config.get('password'),
+        db='URIST_BOT'
+    )
+    return connection
+
+
 # Функция для проверки подключения к базе данных
 async def check_db_connection():
     try:
         connection = await get_connection()
         if connection:
-            print("Успешное подключение к базе данных")
+            logger.error("Успешное подключение к базе данных")
             return True
     except aiomysql.Error as e:
-        print(f"Ошибка подключения к базе данных: {e}")
+        logger.error(f"Ошибка подключения к базе данных: {e}")
     return False
-
-
-
 
 
 async def user_exist(user_id: int):
@@ -48,26 +48,41 @@ async def user_exist(user_id: int):
         connection.close()
         return bool(result)
     except aiomysql.Error as e:
-        print(f"Ошибка выборки пользователей: {e}")
+        logger.error(f"Ошибка выборки пользователей: {e}")
     return False
 
-async def add_user(user_id: int, user_name: str, role: str):
+
+async def add_user(user_id: int, user_name: str, user_fio: str, user_date_birth: str, role: str):
     try:
         connection = await get_connection()
         if role not in ['user', 'lawyer', 'admin']:
             role = 'user'
         reg_date = datetime.datetime.today().date()
         async with connection.cursor() as cur:
-            await cur.execute("INSERT INTO users (user_id, user_name, registration_date, role)"
-                              " VALUES (%s, %s, %s, %s)", (user_id, user_name, reg_date, role))
-            await cur.execute("INSERT INTO user_info (user_id) VALUES (%s)", (user_id,))
-
+            await cur.execute(
+                "INSERT INTO users (user_id, user_name, user_fio, user_date_birth, registration_date, role)"
+                " VALUES (%s, %s, %s, %s, %s, %s)", (user_id, user_name, user_fio, user_date_birth, reg_date, role))
 
         await connection.commit()
         connection.close()
         return True
     except aiomysql.Error as e:
-        print(f"Ошибка добавления пользователя: {e}")
+        logger.error(f"Ошибка добавления пользователя: {e}")
+    return False
+
+
+async def add_lawyer_info(user_id: int, education: str):
+    try:
+        connection = await get_connection()
+        async with connection.cursor() as cur:
+            await cur.execute("INSERT INTO lawyer_info (user_id, education)"
+                              " VALUES (%s, %s)", (user_id, education))
+
+        await connection.commit()
+        connection.close()
+        return True
+    except aiomysql.Error as e:
+        logger.error(f"Ошибка добавления информации о юристе: {e}")
     return False
 
 
@@ -82,7 +97,7 @@ async def get_admins() -> List[int]:
         connection.close()
         return admins
     except aiomysql.Error as e:
-        print(f"Ошибка проверки админов: {e}")
+        logger.error(f"Ошибка проверки админов: {e}")
     return []
 
 
@@ -95,10 +110,10 @@ async def get_user_role(user_id: int) -> str | None:
             role = await cur.fetchone()
 
         connection.close()
-        print(role[0] if role else None)
+        logger.error(role[0] if role else None)
         return role[0] if role else None
     except aiomysql.Error as e:
-        print(f"Ошибка получения роли пользователя: {e}")
+        logger.error(f"Ошибка получения роли пользователя: {e}")
     return None
 
 
@@ -114,8 +129,9 @@ async def add_order(order_id: str, user_id: int, lawyer_id: int | None, order_st
         connection.close()
         return True
     except aiomysql.Error as e:
-        print(f"Ошибка добавления пользователя: {e}")
+        logger.error(f"Ошибка добавления пользователя: {e}")
     return False
+
 
 async def add_order_info(order_id: str, order_text: str, documents_id: str, order_cost: int | None,
                          order_day_start: datetime.date | None, order_day_end: datetime.date | None, message_id: str,
@@ -124,17 +140,18 @@ async def add_order_info(order_id: str, order_text: str, documents_id: str, orde
         connection = await get_connection()
 
         async with connection.cursor() as cur:
-            await cur.execute("INSERT INTO orders_info (order_id, order_text, documents_id, order_cost, order_day_start, "
-                              "order_day_end, message_id, group_id)"
-                              "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                              (order_id, order_text, documents_id, order_cost, order_day_start, order_day_end,
-                               message_id, group_id))
+            await cur.execute(
+                "INSERT INTO orders_info (order_id, order_text, documents_id, order_cost, order_day_start, "
+                "order_day_end, message_id, group_id)"
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (order_id, order_text, documents_id, order_cost, order_day_start, order_day_end,
+                 message_id, group_id))
 
         await connection.commit()
         connection.close()
         return True
     except aiomysql.Error as e:
-        print(f"Ошибка внесения дополнительной информации: {e}")
+        logger.error(f"Ошибка внесения дополнительной информации: {e}")
     return False
 
 
@@ -147,11 +164,12 @@ async def get_order_info_by_order_id(order_id: str) -> tuple | None:
             info = await cur.fetchone()
 
         connection.close()
-        print(info)
+        logger.error(info)
         return info
     except aiomysql.Error as e:
-        print(f"Ошибка получения информации по заказу: {e}")
+        logger.error(f"Ошибка получения информации по заказу: {e}")
     return None
+
 
 async def get_order_additional_info_by_order_id(order_id: str) -> tuple | None:
     try:
@@ -163,11 +181,12 @@ async def get_order_additional_info_by_order_id(order_id: str) -> tuple | None:
             info = await cur.fetchone()
 
         connection.close()
-        print(info)
+        logger.error(info)
         return info
     except aiomysql.Error as e:
-        print(f"Ошибка получения дополнительной информации по заказу: {e}")
+        logger.error(f"Ошибка получения дополнительной информации по заказу: {e}")
     return None
+
 
 async def get_active_order(user_id: int) -> str | None:
     try:
@@ -181,10 +200,11 @@ async def get_active_order(user_id: int) -> str | None:
         connection.close()
         return order_id[0] if order_id else None
     except aiomysql.Error as e:
-        print(f"Ошибка получения дополнительной информации по заказу: {e}")
+        logger.error(f"Ошибка получения дополнительной информации по заказу: {e}")
     return None
 
-async def get_active_order_lawyer_id(user_id: int)  -> int | None:
+
+async def get_active_order_lawyer_id(user_id: int) -> int | None:
     try:
         connection = await get_connection()
         async with connection.cursor() as cur:
@@ -196,8 +216,10 @@ async def get_active_order_lawyer_id(user_id: int)  -> int | None:
         connection.close()
         return lawyer_id[0] if lawyer_id else None
     except aiomysql.Error as e:
-        print(f"Ошибка получения ID сполнителя: {e}")
+        logger.error(f"Ошибка получения ID сполнителя: {e}")
     return None
+
+
 async def update_table(table_name: str, field_values: dict, where_clause: str):
     try:
         connection = await get_connection()
@@ -209,7 +231,7 @@ async def update_table(table_name: str, field_values: dict, where_clause: str):
 
             # Construct SQL query
             if where_clause:
-                print(where_clause)
+                logger.error(where_clause)
                 sql = f"UPDATE {table_name} SET {set_clause} WHERE {where_clause}"
             else:
                 sql = f"UPDATE {table_name} SET {set_clause}"
@@ -220,7 +242,7 @@ async def update_table(table_name: str, field_values: dict, where_clause: str):
         await connection.commit()
         connection.close()
     except aiomysql.Error as e:
-        print(f"Ошибка добавления пользователя: {e}")
+        logger.error(f"Ошибка добавления пользователя: {e}")
     return False
 
 
@@ -237,7 +259,8 @@ async def add_offer(order_id: str, lawyer_id: int, order_cost: int, develop_time
         await connection.commit()
         connection.close()
     except Exception as e:
-        print(f"Ошибка добавления предложения: {e}")
+        logger.error(f"Ошибка добавления предложения: {e}")
+
 
 async def get_offers_by_order_id(order_id: str):
     try:
@@ -252,7 +275,40 @@ async def get_offers_by_order_id(order_id: str):
         connection.close()
         return offers
     except Exception as e:
-        print(f"Ошибка получения предложения: {e}")
+        logger.error(f"Ошибка получения предложения: {e}")
 
 
-# asyncio.run(update_table('users', {'user_name': 'Oleg'}, 'user_id=1111'))
+async def add_document(user_id, document_data):
+    try:
+        connection = await get_connection()
+        async with connection.cursor() as cur:
+            await cur.execute(
+                """
+                INSERT INTO education_documents (user_id, document)
+                VALUES (%s, %s)
+                """,
+                (user_id, document_data)
+            )
+    except Exception as e:
+        logger.error(f"Ошибка добавления файла: {e}")
+
+
+async def get_document(pool, user_id):
+    try:
+        connection = await get_connection()
+        async with connection.cursor(aiomysql.DictCursor) as cur:
+            await cur.execute(
+                """
+                SELECT document
+                FROM education_documents
+                WHERE user_id = %s
+                """,
+                (user_id,)
+            )
+            result = await cur.fetchone()
+            if result:
+                return result['document']
+            else:
+                return None
+    except Exception as e:
+        logger.error(f"Ошибка получения файла: {e}")
