@@ -4,6 +4,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from typing import Callable
 
+from loguru import logger
+
 from handlers.users import on_success_payment, on_failure_payment
 from utils.payments import check_order_status
 
@@ -57,11 +59,14 @@ async def __check_jobs_and_reschedule():
     jobs = sched.get_jobs()
     # job_name = f"{user_id}_{order_id}_{end_time.strftime('%Y%m%d%H%M%S')}"
     for j in jobs:
+        logger.info(j.name, j.id)
         if 'pay' in j.name:
-            user_id, order_id, end_time = j.name.split('_')
+            logger.info(j.name, j.id)
+            user_id, order_id, end_time = j.name.split('_')[1:]
             status = check_order_status(order_id)
             if status:
                 await on_success_payment(user_id, order_id)
+                sched.remove_job(job_id=j.id)
             else:
                 if datetime.now() >= datetime.strptime(end_time, '%d.%m.%Y %H:%M:%S'):
                     await on_failure_payment(user_id, order_id)
@@ -71,3 +76,5 @@ async def __check_jobs_and_reschedule():
 async def global_sched():
     sched.add_job(name='global_sched', id='global_sched', func=__check_jobs_and_reschedule, trigger='interval', seconds=30)
     sched.start()
+
+

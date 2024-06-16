@@ -12,12 +12,14 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 
 async def create_tables_if_not_exists():
-    conn = await asyncpg.connect(f'postgresql://{my_user}:{my_password}@{my_host}/{my_database}')
-    try:
-        await conn.execute(f"CREATE DATABASE {bot_db}")
-        await conn.close()
-    except Exception as e:
-        logger.error(e)
+    # conn = await asyncpg.connect(f'postgresql://{my_user}:{my_password}@{my_host}/{bot_db}')
+    # try:
+    #     # await conn.execute(f"CREATE DATABASE {bot_db}")
+    #     await conn.execute("DROP TABLE orders_info CASCADE")
+    # #     await conn.execute("DROP TABLE offers CASCADE")
+    # #     await conn.close()
+    # except Exception as e:
+    #     logger.error(e)
     try:
         engine = create_async_engine(
             DATABASE_URL)

@@ -10,22 +10,26 @@ from database.db_creation import create_tables_if_not_exists
 import handlers
 from handlers.register_routers import register_users, register_lawyers
 from utils.payments import create_payment_link
+from aiogram.fsm.storage.memory import MemoryStorage
 
 """Настраиваем логи"""
 logger.add('DEBUG.log', format="{time} {level} {message}", filter="my_module", level="ERROR")
 logger.add('DEBUG.log', format="{time} {level} {message}", filter="my_module", level="INFO")
 logger.add('DEBUG.log', format="{time} {level} {message}", filter="my_module", level="DEBUG")
 
-dp = Dispatcher()
 bot = Bot(BOT_TOKEN, parse_mode=ParseMode.HTML)
+
+dp = Dispatcher(storage=MemoryStorage())
 
 
 async def main() -> None:
+    from utils.PaymentChecker import global_sched
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - [%(levelname)s] - %(name)s - "
                "(%(filename)s).%(funcaname)s(%(lineno)d) - %(message)s"
     )
+    await global_sched()
     # All handlers should be attached to the Router (or Dispatcher)
     await create_tables_if_not_exists()
     await register_lawyers()
@@ -41,10 +45,10 @@ async def main() -> None:
     # And the run events dispatching
     await dp.start_polling(bot)
 
-#
-# if __name__ == "__main__":
-#     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-#     try:
-#         asyncio.run(main())
-#     except KeyboardInterrupt:
-#         print("Exit")
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Exit")

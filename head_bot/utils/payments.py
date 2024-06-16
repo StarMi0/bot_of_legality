@@ -48,7 +48,7 @@ def check_order_status(orderNumber) -> bool:
     # Ensure one of orderId or orderNumber is provided
 
     # Creating the payload with required fields
-    payload = {
+    params = {
         "userName": userName,
         "password": password,
         "orderNumber": orderNumber
@@ -56,12 +56,11 @@ def check_order_status(orderNumber) -> bool:
     }
 
 
-
     # Constructing the full URL for the status request
     url = f"{base_url}/rest/getOrderStatusExtended.do"
 
     # Sending the POST request
-    response = requests.post(url, data=payload, params=params)
+    response = requests.post(url, params=params)
 
     # Checking for HTTP request errors
     response.raise_for_status()

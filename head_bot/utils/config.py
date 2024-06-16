@@ -21,3 +21,6 @@ redis_host = 'redis://localhost'
 redis_port = 6379
 
 DATABASE_URL = f"postgresql+asyncpg://{my_user}:{my_password}@{my_host}/{bot_db}"
+
+
+ADMIN_CHAT_ID = 123

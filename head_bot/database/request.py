@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 from typing import List, Optional, Tuple
 import aiomysql
@@ -32,14 +33,14 @@ async def user_exist(user_id: str) -> bool:
             return user is not None
 
 
-async def add_lawyer_info(user_id: str, education: str, education_documents: str):
+async def add_lawyer_info(user_id: str, education: str):
     engine = await get_connection()
 
     try:
         async with AsyncSession(engine) as session:
             async with session.begin():
-                new_lawyer_info = LawyerInfo(user_id=str(user_id), education=education,
-                                             education_documents=education_documents)
+                new_lawyer_info = LawyerInfo(user_id=str(user_id), education=education
+                                             )
                 session.add(new_lawyer_info)
 
             await session.commit()
@@ -79,8 +80,6 @@ async def add_user(user_id: str, user_name: str, user_fio: str, user_date_birth:
         await engine.dispose()
 
 
-
-
 async def get_admins() -> List[str]:
     engine = await get_connection()
 
@@ -91,7 +90,7 @@ async def get_admins() -> List[str]:
                 admins = result.scalars().all()
                 return [admin.user_id for admin in admins]
     except Exception as e:
-        print(f"Ошибка проверки админов: {e}")
+        logger.error(f"Ошибка проверки админов: {e}")
         return []
 
 
@@ -105,7 +104,21 @@ async def get_user_role(user_id: str) -> str | None:
                 role = result.scalar_one_or_none()
                 return role if role else None
     except Exception as e:
-        print(f"Ошибка получения роли пользователя: {e}")
+        logger.error(f"Ошибка получения роли пользователя: {e}")
+        return None
+
+
+async def get_user_info(user_id: str) -> str | None:
+    engine = await get_connection()
+
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                result = await session.execute(select(User.user_name, User.role).filter_by(user_id=str(user_id)))
+                role = result.scalar_one_or_none()
+                return role if role else None
+    except Exception as e:
+        logger.error(f"Ошибка получения роли пользователя: {e}")
         return None
 
 
@@ -117,7 +130,7 @@ async def add_order(order_id: str, user_id: str, lawyer_id: str | None, order_st
             async with session.begin():
                 # Проверка наличия активного заказа
                 active_order = await session.execute(
-                    select(Order).where(Order.user_id == user_id, Order.order_status != 'done')
+                    select(Order).where(Order.user_id == str(user_id), Order.order_status != 'done')
                 )
                 active_order = active_order.scalar_one_or_none()
 
@@ -137,7 +150,7 @@ async def add_order(order_id: str, user_id: str, lawyer_id: str | None, order_st
             await session.commit()
             return 1  # Успешное добавление заказа
     except Exception as e:
-        print(f"Ошибка добавления заказа: {e}")
+        logger.error(f"Ошибка добавления заказа: {e}")
         return 0  # Ошибка добавления заказа
     finally:
         await engine.dispose()
@@ -174,7 +187,7 @@ async def add_order_info(order_id: str, order_text: str, documents_id: list[str]
             await session.commit()
             return True
     except Exception as e:
-        print(f"Ошибка внесения дополнительной информации: {e}")
+        logger.error(f"Ошибка внесения дополнительной информации: {e}")
         return False
 
 
@@ -190,7 +203,7 @@ async def get_order_info_by_order_id(order_id: str) -> tuple | None:
                 info = result.one_or_none()
         return info
     except Exception as e:
-        print(f"Ошибка получения информации по заказу: {e}")
+        logger.error(f"Ошибка получения информации по заказу: {e}")
         return None
 
 
@@ -230,8 +243,9 @@ async def get_order_additional_info_by_order_id(order_id: str) -> Optional[Tuple
                     order_info.group_id
                 )
     except Exception as e:
-        print(f"Ошибка получения дополнительной информации по заказу: {e}")
+        logger.error(f"Ошибка получения дополнительной информации по заказу: {e}")
         return None
+
 
 async def get_active_order(user_id: str) -> str | None:
     engine = await get_connection()
@@ -246,7 +260,7 @@ async def get_active_order(user_id: str) -> str | None:
 
         return order_id if order_id else None
     except Exception as e:
-        print(f"Ошибка получения активного заказа: {e}")
+        logger.error(f"Ошибка получения активного заказа: {e}")
         return None
 
 
@@ -261,9 +275,9 @@ async def get_active_order_by_lawyer(user_id: str) -> list:
                 )
                 order_id = result.fetchall()
 
-        return [i for i in order_id]
+        return [i for i in order_id[0]]
     except Exception as e:
-        print(f"Ошибка получения активного заказа: {e}")
+        logger.error(f"Ошибка получения активного заказа: {e}")
         return []
 
 
@@ -280,7 +294,7 @@ async def get_active_order_lawyer_id(user_id: str) -> str | None:
 
         return lawyer_id if lawyer_id else None
     except Exception as e:
-        print(f"Ошибка получения ID исполнителя: {e}")
+        logger.error(f"Ошибка получения ID исполнителя: {e}")
         return None
 
 
@@ -295,24 +309,25 @@ async def update_table(table, field_values: dict, where_clause: dict):
                 # Apply where clause
                 if where_clause:
                     for key, value in where_clause.items():
-                        stmt = stmt.where(getattr(table.c, key) == value)
+                        stmt = stmt.where(getattr(table, key) == value)
 
                 # Execute the SQL query
                 await session.execute(stmt)
 
             await session.commit()
     except Exception as e:
-        print(f"Ошибка обновления таблицы: {e}")
+        logger.error(f"Ошибка обновления таблицы: {e}")
     return False
 
 
-async def add_offer(order_id: str, lawyer_id: str, order_cost: int, develop_time: int):
+async def add_offer(offer_id: str, order_id: str, lawyer_id: str, order_cost: int, develop_time: int):
     engine = await get_connection()
 
     try:
         async with AsyncSession(engine) as session:
             async with session.begin():
                 new_offer = Offer(
+                    offer_id=offer_id,
                     order_id=order_id,
                     lawyer_id=str(lawyer_id),
                     order_cost=order_cost,
@@ -322,23 +337,42 @@ async def add_offer(order_id: str, lawyer_id: str, order_cost: int, develop_time
 
             await session.commit()
     except Exception as e:
-        print(f"Ошибка добавления предложения: {e}")
+        logger.error(f"Ошибка добавления предложения: {e}")
 
 
-async def get_offers_by_order_id(order_id: str) -> list | None:
+async def get_offer_by_offer_id(offer_id: str) -> list | None:
     engine = await get_connection()
 
     try:
         async with AsyncSession(engine) as session:
             async with session.begin():
                 result = await session.execute(
-                    select(Offer.lawyer_id, Offer.order_cost, Offer.develop_time).filter_by(order_id=order_id)
+                    select(Offer.order_id, Offer.lawyer_id, Offer.order_cost, Offer.develop_time).filter_by(
+                        offer_id=offer_id)
                 )
                 offers = result.fetchone()
 
         return offers if offers else None
     except Exception as e:
-        print(f"Ошибка получения предложений: {e}")
+        logger.error(f"Ошибка получения предложений: {e}")
+        return None
+
+
+async def get_offers_by_lawyer_order_id(lawyer_id: str, order_id: str) -> list | None:
+    engine = await get_connection()
+
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(Offer.lawyer_id, Offer.order_cost, Offer.develop_time).filter(Offer.order_id == order_id,
+                                                                                         Offer.lawyer_id == lawyer_id)
+                )
+                offers = result.fetchone()
+
+        return offers if offers else None
+    except Exception as e:
+        logger.error(f"Ошибка получения предложений: {e}")
         return None
 
 
@@ -358,20 +392,66 @@ async def add_document(user_id, document_data):
         await engine.dispose()
 
 
-async def get_document(user_id):
+async def add_order_document(user_id, document_data):
+    engine = await get_connection()
+
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                new_document = EducationDocument(user_id=str(user_id), document=document_data)
+                session.add(new_document)
+
+            await session.commit()
+    except Exception as e:
+        logger.error(f"Ошибка добавления файла: {e}")
+    finally:
+        await engine.dispose()
+
+
+async def get_order_document(document_id, order_id):
+    engine = await get_connection()
+
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                new_document = OrderDocuments(document_id=str(document_id), order_id=order_id)
+                session.add(new_document)
+
+            await session.commit()
+            return 0
+    except Exception as e:
+        logger.error(f"Ошибка добавления файла: {e}")
+        return 1
+    finally:
+        await engine.dispose()
+
+
+async def get_documents(order_id):
     engine = await get_connection()
 
     try:
         async with AsyncSession(engine) as session:
             async with session.begin():
                 result = await session.execute(
-                    select(EducationDocument.document)
-                    .filter(EducationDocument.user_id == str(user_id))
+                    select(OrderDocuments.document_id)
+                    .filter(OrderDocuments.order_id == str(order_id))
                 )
-                document = result.scalar_one_or_none()
+                documents = result.fetchall()
 
-        return document
+        return documents
     except Exception as e:
         logger.error(f"Ошибка получения файла: {e}")
     finally:
         await engine.dispose()
+
+# asyncio.run(get_user_role('12345'))
+# print(asyncio.run(add_order(order_id='1241252152', user_id='6903479498', lawyer_id=None, order_status='in_search',
+#                             group_id='12412412')))
+# asyncio.run(add_order_info(order_id='412142124412', order_text='123123', documents_id=['123123','12313'], order_cost=None,
+#                              order_day_start=None, order_day_end=None, message_id='123123,123123', group_id='213213'))
+
+
+# asyncio.run(update_table(OrderInfo, field_values={'payment_order_id': '213123'
+#                                             }, where_clause={f'order_id': '123'}))
+#
+# print(getattr(OrderInfo, 'order_id'))

@@ -14,5 +14,9 @@ class Consult(StatesGroup):
     education = State()
     education_documents = State()
     lawyer_client_chat = State()
+    client_lawyer_chat = State()
     get_end_info = State()
+    dispute_info = State()
+
+    NEUTRAL_STATE = State()
 # class OrderInfoLawyer(StatesGroup):

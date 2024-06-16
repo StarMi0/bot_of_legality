@@ -2,13 +2,16 @@ import datetime
 
 from aiogram import Router, Bot, types, F
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.base import StorageKey
 from aiogram.utils.media_group import MediaGroupBuilder
+from loguru import logger
 
 from database.models import Order, OrderInfo
 from database.request import add_order, update_table, get_active_order, get_active_order_lawyer_id, add_user, \
-    add_order_info, get_offers_by_order_id, get_order_additional_info_by_order_id, add_lawyer_info, \
-    get_order_info_by_order_id
+    add_order_info, get_order_additional_info_by_order_id, add_lawyer_info, \
+    get_order_info_by_order_id, get_offer_by_offer_id, get_documents, get_user_info
 from handlers.registration import choose_role
+
 from utils.callbackdata import BranchChoose, ConfirmOrDeleteOffer, GetResponse, GetAnswer
 from utils.payments import create_payment_link
 from utils.states import Consult
@@ -17,7 +20,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardMarkup, 
     ReplyKeyboardBuilder
 from keyboard.kb import select_service_kb, get_main_user_kb, get_main_lawyer_kb
 from utils.utils import check_registration, check_active_query
-from utils.config import group_ID
+from utils.config import group_ID, ADMIN_CHAT_ID
 
 from utils.utils import generate_unique_identifier
 
@@ -220,6 +223,8 @@ async def send_query_to_lawyers(callback: types.CallbackQuery, bot: Bot, state: 
     # Добавить тут запись в базу данных вопроса и файлов
     if not await check_active_query(callback.from_user.id):
         uniq_id = await generate_unique_identifier()
+        print(uniq_id)
+        print(uniq_id)
         await add_order(order_id=uniq_id, user_id=user_id, lawyer_id=None, order_status='in_search', group_id=group_id)
         kb = InlineKeyboardBuilder()
         kb.button(text='Откликнуться', callback_data=GetResponse(uniq_id=uniq_id, user_id=user_id))
@@ -255,7 +260,8 @@ async def send_question_to_lawyer(callback: types.CallbackQuery, bot: Bot, state
     if not await check_active_query(callback.from_user.id):
         uniq_id = await generate_unique_identifier()
 
-        await add_order(order_id=uniq_id, user_id=user_id, lawyer_id=None, order_status='in_search', group_id=group_id)
+        await add_order(order_id=uniq_id, user_id=str(user_id), lawyer_id=None, order_status='in_search',
+                        group_id=str(group_id))
         kb = InlineKeyboardBuilder()
         kb.button(text='Ответить', callback_data=GetAnswer(order_id=uniq_id, user_id=user_id))
         if files:
@@ -289,24 +295,29 @@ async def clear_state(callback: types.CallbackQuery, state: FSMContext):
 
 async def confirm_or_delete_offer(call: CallbackQuery, bot: Bot, callback_data: ConfirmOrDeleteOffer,
                                   state: FSMContext):
-    from utils.PaymentChecker import sched
+    from utils.PaymentChecker import sched, __check_jobs_and_reschedule
     await bot.delete_message(chat_id=call.from_user.id, message_id=call.message.message_id)
-    order_id = callback_data.order_id
+    offer_id = callback_data.offer_id
     confirm = callback_data.confirm
-    lawyer_id, develop_price, develop_time = await get_offers_by_order_id(order_id)
+    order_id, lawyer_id, develop_price, develop_time = await get_offer_by_offer_id(offer_id)
     # тут надо получить из бд айди сообщения из базы юристов и айди сообщения чтобы его удалить (закрыть заказ)
     # если кнопка подтвердить была
     # если отклонить то пишем юристу что ваше предложение отклонено
     if confirm:
         text = 'Необходимо оплатить стоимость заказа. Ссылка будет доступна 15 минут.'
-        payment_url = create_payment_link(orderNumber=order_id, amount=develop_price)
+        payment_order_id = await generate_unique_identifier()
+        # await update_table(OrderInfo, field_values={'payment_order_id': payment_order_id
+        #                                                           },
+        #                    where_clause={f'order_id': order_id})
+        payment_url = create_payment_link(orderNumber=offer_id, amount=develop_price)
         kb = InlineKeyboardBuilder()
         kb.button(text='Оплатить', url=payment_url)
+        logger.info(payment_url)
         await bot.send_message(chat_id=call.from_user.id, text=text, reply_markup=kb.as_markup())
         end_time = datetime.datetime.now() + datetime.timedelta(minutes=15)
         end_time = end_time.strftime('%d.%m.%Y %H:%M:%S')
-        job_name = f"{call.from_user.id}_{order_id}_{end_time}"
-
+        job_name = f"pay_{call.from_user.id}_{offer_id}_{end_time}"
+        sched.add_job(name=job_name, func=__check_jobs_and_reschedule, trigger='interval', seconds=30)
         # chat_id, message_id = await get_order_message_chat_id(order_id)
         # await bot.delete_message(chat_id=chat_id, message_id=message_id)
 
@@ -314,18 +325,18 @@ async def confirm_or_delete_offer(call: CallbackQuery, bot: Bot, callback_data: 
         await bot.send_message(chat_id=lawyer_id, text='Ваше предложение отклонили.')
 
 
-async def on_success_payment(user_id: str, order_id: str):
+async def on_success_payment(user_id: str, offer_id: str):
     from main import bot
-    lawyer_id, develop_price, develop_time = await get_offers_by_order_id(order_id)
+    order_id, lawyer_id, develop_price, develop_time = await get_offer_by_offer_id(offer_id)
     today_day = datetime.datetime.today().date()
-    date_end = today_day + develop_time
-    await update_table(Order.__tablename__,
+    date_end = today_day + datetime.timedelta(days=int(develop_time))
+    await update_table(Order,
                        field_values={'lawyer_id': lawyer_id, 'order_status': 'in_progress'},
                        where_clause={f'order_id': order_id})
-    await update_table(OrderInfo.__tablename__, field_values={'order_cost': develop_price,
-                                                              'order_day_start': today_day,
-                                                              'order_day_end': date_end
-                                                              },
+    await update_table(OrderInfo, field_values={'order_cost': develop_price,
+                                                'order_day_start': today_day,
+                                                'order_day_end': date_end
+                                                },
                        where_clause={f'order_id': order_id})
     info = await get_order_additional_info_by_order_id(order_id)
     order_text, documents_id, order_cost, order_day_start, order_day_end, message_id, group_id = info
@@ -338,9 +349,11 @@ async def on_success_payment(user_id: str, order_id: str):
         await bot.forward_message(chat_id=lawyer_id, message_id=msg_id, from_chat_id=group_id)
         await bot.delete_message(chat_id=group_id, message_id=msg_id)
 
-async def on_failure_payment(user_id: str, order_id: str):
+
+async def on_failure_payment(user_id: str, offer_id: str):
     from main import bot
     await bot.send_message(chat_id=user_id, text='Заказ не был оплачен!')
+
 
 async def on_client_lawyer_chat_start(call: CallbackQuery, bot: Bot, state: FSMContext):
     from main import dp
@@ -348,12 +361,13 @@ async def on_client_lawyer_chat_start(call: CallbackQuery, bot: Bot, state: FSMC
     kb.button(text='Закончить чат')
     order_id = call.data.split('_')[-1]
     user_id, lawyer_id, status = await get_order_info_by_order_id(order_id)
-    user_state = await dp.fsm.get_context(bot=bot, chat_id=user_id, user_id=user_id)
-    lawyer_state = await dp.fsm.get_context(bot=bot, chat_id=lawyer_id, user_id=lawyer_id)
-    await user_state.set_state(Consult.lawyer_client_chat)
-    await lawyer_state.set_state(Consult.lawyer_client_chat)
-    await lawyer_state.update_data(ORDER_ID=order_id)
-    await user_state.update_data(ORDER_ID=order_id)
+
+    user_state = StorageKey(bot_id=bot.id, chat_id=user_id, user_id=user_id)
+    lawyer_state = StorageKey(bot_id=bot.id, chat_id=lawyer_id, user_id=lawyer_id)
+    user_context = FSMContext(storage=dp.storage, key=user_state)
+    lawyer_context = FSMContext(storage=dp.storage, key=lawyer_state)
+    await lawyer_context.update_data(ORDER_ID=order_id)
+    await user_context.update_data(ORDER_ID=order_id)
     await bot.send_message(chat_id=lawyer_id, text=f'Начат чат по поводу заказа {order_id}',
                            reply_markup=kb.as_markup(resize_keyboard=True))
     await bot.send_message(chat_id=user_id, text=f'Начат чат по поводу заказа {order_id}',
@@ -362,13 +376,16 @@ async def on_client_lawyer_chat_start(call: CallbackQuery, bot: Bot, state: FSMC
 
 async def end_chat(message: Message, bot: Bot, state: FSMContext):
     from main import dp
-    data = await state.get_data()
+    user_id = message.from_user.id
+    user_state = StorageKey(bot_id=bot.id, chat_id=int(user_id), user_id=int(user_id))
+    data = await dp.storage.get_data(key=user_state)
     order_id = data.get('ORDER_ID')
+
     user_id, lawyer_id, status = await get_order_info_by_order_id(order_id)
-    user_state = await dp.fsm.get_context(bot=bot, chat_id=user_id, user_id=user_id)
-    lawyer_state = await dp.fsm.get_context(bot=bot, chat_id=lawyer_id, user_id=lawyer_id)
-    await user_state.clear()
-    await lawyer_state.clear()
+    user_state = StorageKey(bot_id=bot.id, chat_id=int(user_id), user_id=int(user_id))
+    lawyer_state = StorageKey(bot_id=bot.id, chat_id=int(lawyer_id), user_id=int(lawyer_id))
+    await dp.storage.set_state(key=user_state, state=Consult.NEUTRAL_STATE)
+    await dp.storage.set_state(key=lawyer_state, state=Consult.NEUTRAL_STATE)
     await bot.send_message(chat_id=lawyer_id, text=f'Чат окончен.',
                            reply_markup=ReplyKeyboardRemove())
     await bot.send_message(chat_id=user_id, text=f'Чат окончен.',
@@ -376,16 +393,100 @@ async def end_chat(message: Message, bot: Bot, state: FSMContext):
 
 
 async def process_dialog(message: Message, bot: Bot, state: FSMContext):
-    data = await state.get_data()
+    logger.info(await state.get_state())
+    if message.text.lower() == 'закончить чат':
+        await end_chat(message, bot, state)
+        return
+    from main import dp
+    user_state = StorageKey(bot_id=bot.id, chat_id=message.from_user.id, user_id=message.from_user.id)
+    logger.error(user_state)
+    data = await dp.storage.get_data(key=user_state)
+    logger.error(data)
     order_id = data.get('ORDER_ID')
     user_id, lawyer_id, status = await get_order_info_by_order_id(order_id)
-    if message.from_user.id == user_id:
-        await bot.forward_message(from_chat_id=user_id, chat_id=lawyer_id, message_id=message.message_id)
-    elif message.from_user.id == lawyer_id:
-        await bot.forward_message(from_chat_id=lawyer_id, chat_id=user_id, message_id=message.message_id)
+    if message.from_user.id == int(user_id):
+        await bot.copy_message(from_chat_id=user_id, chat_id=lawyer_id, message_id=message.message_id)
+    elif message.from_user.id == int(lawyer_id):
+        await bot.copy_message(from_chat_id=lawyer_id, chat_id=user_id, message_id=message.message_id)
 
 
+async def on_client_confirm_end(call: CallbackQuery, bot: Bot, state: FSMContext):
+    order_id = call.data.split('_')[-1]
+    documents = await get_documents(order_id)
+    user_id, lawyer_id, status = await get_order_info_by_order_id(order_id)
+    media = MediaGroupBuilder(caption='Документы по вашему заказу.')
+    for doc in documents:
+        media.add_document(doc[0])
+    kb = InlineKeyboardBuilder()
+    order_text, documents_ids, cost, day_start, day_end, _, _, = await get_order_additional_info_by_order_id(order_id)
+    logger.info(order_text, documents_ids)
+    text = (f'Заказ успешно закрыт. Данные по заказу:'
+            f'{order_text}\n'
+            f'Цена: {cost}\n'
+            f'Дата начала: {day_start}\n'
+            f'До: {day_end}\n')
+    await bot.send_message(chat_id=call.from_user.id, text=text)
+    await bot.send_media_group(chat_id=call.from_user.id, media=media.build())
 
+    text_to_lawyer = 'Заказ успешно закрыт!'
+    await bot.send_message(chat_id=lawyer_id, text=text_to_lawyer)
+
+    await update_table(Order,
+                       field_values={'order_status': 'close'},
+                       where_clause={f'order_id': order_id})
+
+
+async def on_client_dispute_end(call: CallbackQuery, bot: Bot, state: FSMContext):
+    order_id = call.data.split('_')[-1]
+    await state.update_data(ORDER_ID=order_id)
+    documents = await get_documents(order_id)
+    await state.set_state(Consult.dispute_info)
+    kb = InlineKeyboardBuilder()
+    kb.button(text='Отмена', callback_data='cancel')
+    text = 'Опишите проблему, из-за которой вы хотели бы оспорить заказ:'
+    await bot.send_message(chat_id=call.from_user.id, text=text, reply_markup=kb.as_markup())
+
+    await update_table(Order,
+                       field_values={'order_status': 'close'},
+                       where_clause={f'order_id': order_id})
+
+
+async def on_get_dispute_text(message: Message, bot: Bot, state: FSMContext):
+    dispute_text = message.text
+    await state.update_data(DISPUTE_TEXT=dispute_text)
+
+    kb = InlineKeyboardBuilder()
+    kb.button(text='Отправить запрос на рассмотрение', callback_data='send_dispute')
+    text = (f"Ваш вопрос: {dispute_text} будет отправлен на рассмотрение администраторам.\n"
+            f"Чтобы отправить - нажмите кнопку отправить, чтобы отредактировать - пришлите отредактированый вопрос.")
+    await message.answer(text=text, reply_markup=kb.as_markup())
+
+
+async def on_send_dispute_to_admins(call: CallbackQuery, bot: Bot, state: FSMContext):
+    data = await state.get_data()
+    order_id = data.get('ORDER_ID')
+    dispute_text = data.get('DISPUTE_TEXT')
+    documents = await get_documents(order_id)
+
+    user_id, lawyer_id, status = await get_order_info_by_order_id(order_id)
+    media = MediaGroupBuilder(caption='Документы по вашему заказу.')
+    for doc in documents:
+        media.add_document(doc[0])
+    lawyer_username, lawyer_role = await get_user_info(lawyer_id)
+    user_username, user_role = await get_user_info(user_id)
+    order_text, documents_ids, cost, day_start, day_end, _, _, = await get_order_additional_info_by_order_id(order_id)
+    logger.info(order_text, documents_ids)
+    text = (f'Открыт спор по заказу. Данные по заказу:\n'
+            f'Пользователь: @{user_username}\n'
+            f'Юрист: @{lawyer_username}\n'
+            f'Причина спора: {dispute_text}\n'
+            f'Текст заказа: {order_text}\n'
+            f'Цена: {cost}\n'
+            f'Дата начала: {day_start}\n'
+            f'До: {day_end}\n')
+    await bot.send_message(chat_id=ADMIN_CHAT_ID, text=text)
+    await bot.send_media_group(chat_id=ADMIN_CHAT_ID, media=media.build())
+    await call.message.answer(text='Ваша заявка отправлена.')
 
 
 """
