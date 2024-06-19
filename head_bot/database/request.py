@@ -115,8 +115,8 @@ async def get_user_info(user_id: str) -> str | None:
         async with AsyncSession(engine) as session:
             async with session.begin():
                 result = await session.execute(select(User.user_name, User.role).filter_by(user_id=str(user_id)))
-                role = result.scalar_one_or_none()
-                return role if role else None
+                role = result.fetchone()
+                return role
     except Exception as e:
         logger.error(f"Ошибка получения роли пользователя: {e}")
         return None
@@ -130,7 +130,7 @@ async def add_order(order_id: str, user_id: str, lawyer_id: str | None, order_st
             async with session.begin():
                 # Проверка наличия активного заказа
                 active_order = await session.execute(
-                    select(Order).where(Order.user_id == str(user_id), Order.order_status != 'done')
+                    select(Order).where(Order.user_id == str(user_id), Order.order_status != 'close')
                 )
                 active_order = active_order.scalar_one_or_none()
 
@@ -148,10 +148,10 @@ async def add_order(order_id: str, user_id: str, lawyer_id: str | None, order_st
                 session.add(new_order)
 
             await session.commit()
-            return 1  # Успешное добавление заказа
+            return 0  # Успешное добавление заказа
     except Exception as e:
         logger.error(f"Ошибка добавления заказа: {e}")
-        return 0  # Ошибка добавления заказа
+        return 1  # Ошибка добавления заказа
     finally:
         await engine.dispose()
 
@@ -177,12 +177,13 @@ async def add_order_info(order_id: str, order_text: str, documents_id: list[str]
                 session.add(new_order_info)
 
                 # Добавление документов
-                for doc_id in documents_id:
-                    new_order_document = OrderDocuments(
-                        order_id=order_id,
-                        document_id=doc_id
-                    )
-                    session.add(new_order_document)
+                if documents_id:
+                    for doc_id in documents_id:
+                        new_order_document = OrderDocuments(
+                            order_id=order_id,
+                            document_id=doc_id
+                        )
+                        session.add(new_order_document)
 
             await session.commit()
             return True
@@ -222,7 +223,8 @@ async def get_order_additional_info_by_order_id(order_id: str) -> Optional[Tuple
                         OrderInfo.message_id,
                         OrderInfo.group_id,
                         OrderDocuments.document_id
-                    ).join(OrderDocuments, OrderInfo.order_id == OrderDocuments.order_id)
+                    ).join(OrderDocuments, OrderInfo.order_id == OrderDocuments.order_id,
+                           isouter=True)  # Use isouter=True for a left join
                     .filter(OrderInfo.order_id == order_id)
                 )
 
@@ -231,7 +233,8 @@ async def get_order_additional_info_by_order_id(order_id: str) -> Optional[Tuple
                     return None
 
                 order_info = info[0]
-                documents = [row.document_id for row in info]
+                documents = [row.document_id for row in info if
+                             row.document_id is not None]  # Handle cases where document_id might be None
 
                 return (
                     order_info.order_text,
@@ -254,14 +257,14 @@ async def get_active_order(user_id: str) -> str | None:
         async with AsyncSession(engine) as session:
             async with session.begin():
                 result = await session.execute(
-                    select(Order.order_id).filter_by(user_id=str(user_id))
+                    select(Order.order_id).where(Order.user_id == str(user_id), Order.order_status != 'close')
                 )
                 order_id = result.scalar_one_or_none()
 
-        return order_id if order_id else None
+        return order_id if order_id else False
     except Exception as e:
         logger.error(f"Ошибка получения активного заказа: {e}")
-        return None
+        return True
 
 
 async def get_active_order_by_lawyer(user_id: str) -> list:
@@ -271,7 +274,7 @@ async def get_active_order_by_lawyer(user_id: str) -> list:
         async with AsyncSession(engine) as session:
             async with session.begin():
                 result = await session.execute(
-                    select(Order.order_id).where(Order.lawyer_id == str(user_id), Order.order_status != 'done')
+                    select(Order.order_id).where(Order.lawyer_id == str(user_id), Order.order_status != 'close')
                 )
                 order_id = result.fetchall()
 
@@ -438,20 +441,24 @@ async def get_documents(order_id):
                 )
                 documents = result.fetchall()
 
-        return documents
+        return [doc[0] for doc in documents]
     except Exception as e:
         logger.error(f"Ошибка получения файла: {e}")
     finally:
         await engine.dispose()
 
+
 # asyncio.run(get_user_role('12345'))
-# print(asyncio.run(add_order(order_id='1241252152', user_id='6903479498', lawyer_id=None, order_status='in_search',
-#                             group_id='12412412')))
+# print(print(asyncio.run(add_order(order_id='1241252152', user_id='6903479498', lawyer_id=None, order_status='in_search',
+#                                   group_id='12412412'))))
 # asyncio.run(add_order_info(order_id='412142124412', order_text='123123', documents_id=['123123','12313'], order_cost=None,
 #                              order_day_start=None, order_day_end=None, message_id='123123,123123', group_id='213213'))
 
 
-# asyncio.run(update_table(OrderInfo, field_values={'payment_order_id': '213123'
-#                                             }, where_clause={f'order_id': '123'}))
+print(asyncio.run(update_table(Order, field_values={'order_status': 'close'
+                                                        },
+                               where_clause={f'order_id': 'bd1feeb5b6f649b78a72fd00f7c2abbd'})))
 #
 # print(getattr(OrderInfo, 'order_id'))
+# print(asyncio.run(get_order_additional_info_by_order_id('e89b422b6eed42038e3976b5b291c77b')))
+# print(asyncio.run(get_active_order('6903479498')))

@@ -198,10 +198,9 @@ async def send_query_to_confirm(callback: types.CallbackQuery, bot: Bot, state: 
     question = data.get('question')
     user_id = callback.from_user.id
     if files:
-        media_group = MediaGroupBuilder()
-        for f in files[:-2]:
+        media_group = MediaGroupBuilder(caption=question)
+        for f in files:
             media_group.add_document(media=f)
-        media_group.add_document(media=files[-1], caption=question)
         await bot.send_media_group(chat_id=callback.from_user.id, media=media_group.build())
         await bot.send_message(chat_id=callback.from_user.id, text='Так выглядит ваш вопрос:',
                                reply_markup=kb.as_markup())
@@ -213,15 +212,17 @@ async def send_query_to_confirm(callback: types.CallbackQuery, bot: Bot, state: 
 
 async def send_query_to_lawyers(callback: types.CallbackQuery, bot: Bot, state: FSMContext):
     await bot.delete_message(chat_id=callback.from_user.id, message_id=callback.message.message_id)
-    await callback.message.answer(text='Ваш вопрос отправлен!')
-    data = await state.get_data()
-    group_id = data.get('group_id')
-    files = data.get('files')
-    question = data.get('question')
-    user_id = callback.from_user.id
+
 
     # Добавить тут запись в базу данных вопроса и файлов
     if not await check_active_query(callback.from_user.id):
+
+        await callback.message.answer(text='Ваш вопрос отправлен!')
+        data = await state.get_data()
+        group_id = data.get('group_id')
+        files = data.get('files')
+        question = data.get('question')
+        user_id = callback.from_user.id
         uniq_id = await generate_unique_identifier()
         print(uniq_id)
         print(uniq_id)
@@ -229,10 +230,9 @@ async def send_query_to_lawyers(callback: types.CallbackQuery, bot: Bot, state: 
         kb = InlineKeyboardBuilder()
         kb.button(text='Откликнуться', callback_data=GetResponse(uniq_id=uniq_id, user_id=user_id))
         if files:
-            media_group = MediaGroupBuilder()
-            for f in files[:-2]:
+            media_group = MediaGroupBuilder(caption=question)
+            for f in files:
                 media_group.add_document(media=f)
-            media_group.add_document(media=files[-1], caption=question)
             msg = await bot.send_media_group(chat_id=group_id, media=media_group.build())
             message_ids = f"{','.join([str(i.message_id) for i in msg])}"
             msg = await bot.send_message(chat_id=group_id, text='Ответить',
@@ -246,6 +246,8 @@ async def send_query_to_lawyers(callback: types.CallbackQuery, bot: Bot, state: 
                              order_day_start=None, order_day_end=None, message_id=message_ids, group_id=group_id)
 
         await state.clear()
+    else:
+        await callback.message.answer(text='У вас уже есть активный заказ.')
 
 
 async def send_question_to_lawyer(callback: types.CallbackQuery, bot: Bot, state: FSMContext):
@@ -355,6 +357,20 @@ async def on_failure_payment(user_id: str, offer_id: str):
     await bot.send_message(chat_id=user_id, text='Заказ не был оплачен!')
 
 
+async def on_cancel_order(call: CallbackQuery, bot: Bot):
+    order_id = call.data.split('_')[-1]
+    info = await get_order_additional_info_by_order_id(order_id)
+    order_text, documents_id, order_cost, order_day_start, order_day_end, message_id, group_id = info
+    await update_table(Order,
+                       field_values={'order_status': 'canceled'},
+                       where_clause={f'order_id': order_id})
+    for msg_id in message_id.split(','):
+        kb = InlineKeyboardBuilder()
+        kb.button(text='В работе.', callback_data='empty')
+        await bot.delete_message(chat_id=group_id, message_id=msg_id)
+    await call.message.answer(text='Ваш заказ отменен.')
+
+
 async def on_client_lawyer_chat_start(call: CallbackQuery, bot: Bot, state: FSMContext):
     from main import dp
     kb = ReplyKeyboardBuilder()
@@ -413,10 +429,11 @@ async def process_dialog(message: Message, bot: Bot, state: FSMContext):
 async def on_client_confirm_end(call: CallbackQuery, bot: Bot, state: FSMContext):
     order_id = call.data.split('_')[-1]
     documents = await get_documents(order_id)
+    logger.error(order_id)
     user_id, lawyer_id, status = await get_order_info_by_order_id(order_id)
     media = MediaGroupBuilder(caption='Документы по вашему заказу.')
     for doc in documents:
-        media.add_document(doc[0])
+        media.add_document(doc)
     kb = InlineKeyboardBuilder()
     order_text, documents_ids, cost, day_start, day_end, _, _, = await get_order_additional_info_by_order_id(order_id)
     logger.info(order_text, documents_ids)
@@ -471,7 +488,7 @@ async def on_send_dispute_to_admins(call: CallbackQuery, bot: Bot, state: FSMCon
     user_id, lawyer_id, status = await get_order_info_by_order_id(order_id)
     media = MediaGroupBuilder(caption='Документы по вашему заказу.')
     for doc in documents:
-        media.add_document(doc[0])
+        media.add_document(doc)
     lawyer_username, lawyer_role = await get_user_info(lawyer_id)
     user_username, user_role = await get_user_info(user_id)
     order_text, documents_ids, cost, day_start, day_end, _, _, = await get_order_additional_info_by_order_id(order_id)
@@ -484,7 +501,9 @@ async def on_send_dispute_to_admins(call: CallbackQuery, bot: Bot, state: FSMCon
             f'Цена: {cost}\n'
             f'Дата начала: {day_start}\n'
             f'До: {day_end}\n')
-    await bot.send_message(chat_id=ADMIN_CHAT_ID, text=text)
+    kb = InlineKeyboardBuilder()
+    kb.button(text='Закрыть заказ', callback_data=f'admin_end_{order_id}')
+    await bot.send_message(chat_id=ADMIN_CHAT_ID, text=text, reply_markup=kb.as_markup())
     await bot.send_media_group(chat_id=ADMIN_CHAT_ID, media=media.build())
     await call.message.answer(text='Ваша заявка отправлена.')
 

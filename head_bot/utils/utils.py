@@ -1,6 +1,6 @@
 import uuid
 
-from database.request import get_user_role
+from database.request import get_user_role, get_active_order
 
 
 async def generate_unique_identifier():
@@ -20,7 +20,7 @@ async def check_registration(user_id: str) -> bool:
 async def check_active_query(user_id):
     # Проверка есть ли активные вопросы у пользователя
     # возвращает True если есть, False если нет
-    return False
+    return await get_active_order(user_id)
 
 
 from datetime import datetime, timedelta

@@ -91,6 +91,7 @@ async def send_offer_to_client(call: CallbackQuery, bot: Bot, state: FSMContext)
     order_id = data.get('order_id')
     lawyer_id = call.from_user.id
     kb = InlineKeyboardBuilder()
+    await state.clear()
     print(original_user_id, develop_price, develop_time, order_id, lawyer_id)
     await call.message.answer(text='Предложение отправлено!')
     # Ниже получаем из бд инфу по юристу и суем ее в сообщение (а че там кроме рейтинга)
@@ -103,6 +104,11 @@ async def send_offer_to_client(call: CallbackQuery, bot: Bot, state: FSMContext)
     kb.button(text='Отклонить',
               callback_data=ConfirmOrDeleteOffer(offer_id=new_offer_id,
                                                  lawyer_id=str(lawyer_id), confirm=False))
+    kb.button(text='Отменить заказ',
+              callback_data=f'order_cancel_{order_id}')
+
+
+
     message_text = f'Предложение по вашему заказу:\n' \
                    f'Сроки: {develop_time}\n' \
                    f'Цена: {develop_price}\n' \
@@ -144,7 +150,8 @@ async def send_order_info(call: CallbackQuery, bot: Bot, state: FSMContext):
     kb.button(text='Закрыть заказ', callback_data=f'close_order_{order_id}')
     kb.adjust(1)
     await call.message.answer(text=text, reply_markup=kb.as_markup())
-    await bot.send_media_group(chat_id=call.from_user.id, media=docs.build())
+    if docs:
+        await bot.send_media_group(chat_id=call.from_user.id, media=docs.build())
 
 
 async def send_main_lawyer_kb(call: CallbackQuery, bot: Bot, state: FSMContext):
@@ -215,7 +222,7 @@ async def on_full_end(call: CallbackQuery, bot: Bot, state: FSMContext):
     user_id, lawyer_id, status = await get_order_info_by_order_id(order_id)
     media = MediaGroupBuilder(caption='Документы по вашему заказу.')
     for doc in documents:
-        media.add_document(doc[0])
+        media.add_document(media=doc)
     kb = InlineKeyboardBuilder()
     kb.button(text='Закрыть заказ', callback_data=f'user_confirm_end_{order_id}')
     kb.button(text='Оспорить заказ', callback_data=f'user_dispute_end_{order_id}')
@@ -223,7 +230,7 @@ async def on_full_end(call: CallbackQuery, bot: Bot, state: FSMContext):
             'закрыть заказ,'
             'либо оспорить его, если вас не устроила работа. Через 7 дней заказ будет автоматически закрыт.')
     await bot.send_message(chat_id=user_id, text=text, reply_markup=kb.as_markup())
-    await bot.send_media_group(chat_id=call.from_user.id, media=media.build())
+    await bot.send_media_group(chat_id=user_id, media=media.build())
 
     text_to_lawyer = 'Передали информацию клиенту, сообщим вам когда он примет решение по заказу.'
     await call.message.answer(text=text_to_lawyer)

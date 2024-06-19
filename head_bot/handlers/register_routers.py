@@ -12,7 +12,8 @@ from utils.isadmin import IsAdmin
 from handlers.users import router_users, get_start, process_input_file, clear_state, process_file_from_user, \
     send_query_to_lawyers, process_branch, confirm_or_delete_offer, send_select_service, send_active_orders, \
     process_file_to_lawyer, send_query_to_confirm, registration_end_user, registration_end_lawyer, process_dialog, \
-    end_chat, on_client_confirm_end, on_client_dispute_end, on_send_dispute_to_admins
+    end_chat, on_client_confirm_end, on_client_dispute_end, on_send_dispute_to_admins, on_cancel_order, \
+    on_get_dispute_text
 from aiogram.filters import CommandStart, StateFilter
 from utils.states import Consult
 
@@ -50,11 +51,11 @@ async def register_users():
     router_users.message.register(process_documents, F.document, StateFilter(Consult.education_documents))
     router_users.message.register(process_dialog, StateFilter(Consult.client_lawyer_chat))
 
-
+    router_lawyers.callback_query.register(on_cancel_order, F.data.startswith('order_cancel_'))
     router_lawyers.callback_query.register(on_client_confirm_end, F.data.startswith('user_confirm_end_'))
     router_lawyers.callback_query.register(on_client_dispute_end, F.data.startswith('user_dispute_end_'))
     router_lawyers.callback_query.register(on_send_dispute_to_admins, F.data.startswith('send_dispute'))
-    router_lawyers.callback_query.register(on_client_dispute_end, StateFilter(Consult.dispute_info))
+    router_lawyers.message.register(on_get_dispute_text, StateFilter(Consult.dispute_info))
 
 
 async def register_lawyers():
@@ -69,9 +70,12 @@ async def register_lawyers():
     router_lawyers.callback_query.register(on_end_order, F.data.startswith('close_order_'))
     router_lawyers.callback_query.register(after_confirm_close, F.data.startswith('confirm_close_'))
     router_lawyers.callback_query.register(on_full_end, F.data.startswith('full_close_'))
-    router_lawyers.callback_query.register(on_get_end_info, StateFilter(Consult.get_end_info))
+    router_lawyers.message.register(on_get_end_info, StateFilter(Consult.get_end_info))
     router_lawyers.callback_query.register(send_order_info, F.data.startswith('order_'))
 
     router_lawyers.message.register(end_chat, DialogFilter(), F.text == 'Закончить чат')
     router_lawyers.message.register(process_dialog, F.text, DialogFilter())
     # router_lawyers.message.register(process_dialog)
+
+    """admin"""
+    router_lawyers.callback_query.register(on_client_confirm_end, F.data.startswith('admin_end_'))
