@@ -16,7 +16,7 @@ async def create_tables_if_not_exists():
     try:
         await conn.execute(f"CREATE DATABASE {bot_db}")
     #     await conn.execute("DROP TABLE offers CASCADE")
-    #     await conn.close()
+        await conn.close()
     except Exception as e:
         logger.error(e)
     try:

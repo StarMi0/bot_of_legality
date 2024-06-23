@@ -6,53 +6,11 @@ from typing import Callable
 
 from loguru import logger
 
-from handlers.users import on_success_payment, on_failure_payment
+from database.request import get_orders_on_verify
+from handlers.users import on_success_payment, on_failure_payment, on_time_confirm_end
 from utils.payments import check_order_status
 
 sched = AsyncIOScheduler()
-
-
-# class PaymentChecker:
-#     def __init__(self, check_order_status: Callable[[str], bool], on_success: Callable[[str, str], None],
-#                  on_failure: Callable[[str, str], None]):
-#         self.scheduler = AsyncIOScheduler()
-#         self.check_order_status = check_order_status
-#         self.on_success = on_success
-#         self.on_failure = on_failure
-#         self.scheduler.start()
-#
-#     async def check_payment(self, user_id: str, order_id: str):
-#         # Имитация асинхронной функции, которая вызывает check_order_status
-#         result = await asyncio.to_thread(self.check_order_status, order_id)
-#         if result:
-#             await self.on_success(user_id, order_id)
-#             return True
-#         else:
-#             return False
-#
-#     def schedule_check(self, user_id: str, order_id: str):
-#         end_time = datetime.now() + timedelta(minutes=15)
-#         job_id = f"{user_id}_{order_id}_{end_time.strftime('%Y%m%d%H%M%S')}"
-#
-#         def check_status_job():
-#             asyncio.create_task(self._check_and_reschedule(job_id, user_id, order_id, end_time))
-#
-#         self.scheduler.add_job(check_status_job, IntervalTrigger(minutes=1), id=job_id)
-#
-#     async def _check_and_reschedule(self, job_id: str, user_id: str, order_id: str, end_time: datetime):
-#         if datetime.now() >= end_time:
-#             await self.on_failure(user_id, order_id)
-#             self.scheduler.remove_job(job_id)
-#         else:
-#             success = await self.check_payment(user_id, order_id)
-#             if success:
-#                 self.scheduler.remove_job(job_id)
-#
-#     def stop(self):
-#         self.scheduler.shutdown()
-#
-#
-# payment_checker = PaymentChecker(check_order_status, on_success_payment, on_failure_payment)
 
 
 async def __check_jobs_and_reschedule():
@@ -73,8 +31,15 @@ async def __check_jobs_and_reschedule():
                     sched.remove_job(job_id=j.id)
 
 
+async def check_active_orders_to_close():
+    """status: on_verify"""
+    on_verify_orders = await get_orders_on_verify()
+    for order in on_verify_orders:
+        order_id, _date = order
+        if datetime.now().date() > _date:
+            await on_time_confirm_end(order_id)
+
 async def global_sched():
     sched.add_job(name='global_sched', id='global_sched', func=__check_jobs_and_reschedule, trigger='interval', seconds=30)
+    sched.add_job(name='global_sched', id='global_sched', func=check_active_orders_to_close, trigger='cron', hour=20, minute=0)
     sched.start()
-
-

@@ -30,7 +30,7 @@ async def register_users():
 
     """Main kb"""
     router_users.callback_query.register(send_select_service, F.data == "get_select_service")
-    router_users.callback_query.register(send_active_orders, F.data == "get_active_orders")
+    router_users.callback_query.register(on_lawyer_client_chat_start,  F.data.startswith("get_active_orders_"))
     router_users.callback_query.register(get_active_orders_lawyer, F.data == "get_active_orders_lawyer")
 
     """Question to lawyer"""
@@ -73,8 +73,8 @@ async def register_lawyers():
     router_lawyers.message.register(on_get_end_info, StateFilter(Consult.get_end_info))
     router_lawyers.callback_query.register(send_order_info, F.data.startswith('order_'))
 
-    router_lawyers.message.register(end_chat, DialogFilter(), F.text == 'Закончить чат')
-    router_lawyers.message.register(process_dialog, F.text, DialogFilter())
+    router_lawyers.message.register(end_chat, F.text == 'Закончить чат', DialogFilter())
+    router_lawyers.message.register(process_dialog, DialogFilter())
     # router_lawyers.message.register(process_dialog)
 
     """admin"""

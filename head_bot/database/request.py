@@ -284,14 +284,31 @@ async def get_active_order_by_lawyer(user_id: str) -> list:
         return []
 
 
-async def get_active_order_lawyer_id(user_id: str) -> str | None:
+async def get_orders_on_verify() -> list:
     engine = await get_connection()
 
     try:
         async with AsyncSession(engine) as session:
             async with session.begin():
                 result = await session.execute(
-                    select(Order.lawyer_id).filter_by(user_id=str(user_id))
+                    select(OrderInfo.order_id, OrderInfo.order_day_end_actually).where(Order.order_status == 'on_verify')
+                )
+                res = result.fetchall()
+
+        return [i for i in res]
+    except Exception as e:
+        logger.error(f"Ошибка получения заказов на проверке: {e}")
+        return []
+
+
+async def get_active_order_lawyer_id(user_id: str, order_id: str) -> str | None:
+    engine = await get_connection()
+
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(Order.lawyer_id).filter_by(user_id=str(user_id), order_id=order_id)
                 )
                 lawyer_id = result.scalar_one_or_none()
 

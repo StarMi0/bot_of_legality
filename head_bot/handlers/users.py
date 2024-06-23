@@ -48,7 +48,7 @@ async def get_start(message: Message, bot: Bot):
         #                     reply_markup=reg_builder.as_markup())
     else:
         if role == 'user':
-            kb = await get_main_user_kb()
+            kb = await get_main_user_kb(message.from_user.id)
             await bot.send_message(message.from_user.id, f"<b>Hello, {message.from_user.first_name}! "
                                                          f"\nТут будет приветственное сообщение!</b>",
                                    reply_markup=kb)
@@ -94,12 +94,12 @@ async def send_select_service(call: CallbackQuery, bot: Bot):
 
 async def send_active_orders(call: CallbackQuery, bot: Bot, state: FSMContext):
     order_id = await get_active_order(call.from_user.id)
-    lawyer_id = await get_active_order_lawyer_id(call.from_user.id)
+    lawyer_id = await get_active_order_lawyer_id(call.from_user.id, order_id)
     if order_id:
         if not lawyer_id:
             await bot.send_message(chat_id=call.from_user.id,
                                    text='Вы еще не выбрали исполнителя по заказу.',
-                                   reply_markup=await get_main_user_kb())
+                                   reply_markup=await get_main_user_kb(call.from_user.id))
         await bot.send_message(chat_id=call.from_user.id,
                                text='Введите вопрос по заказу:')
         await state.update_data(group_id=lawyer_id)
@@ -107,7 +107,7 @@ async def send_active_orders(call: CallbackQuery, bot: Bot, state: FSMContext):
     else:
         await bot.send_message(chat_id=call.from_user.id,
                                text='Активных заказов нет',
-                               reply_markup=await get_main_user_kb())
+                               reply_markup=await get_main_user_kb(call.from_user.id))
 
 
 async def process_branch(call: CallbackQuery, bot: Bot, callback_data: BranchChoose, state: FSMContext):
@@ -378,12 +378,15 @@ async def on_client_lawyer_chat_start(call: CallbackQuery, bot: Bot, state: FSMC
     order_id = call.data.split('_')[-1]
     user_id, lawyer_id, status = await get_order_info_by_order_id(order_id)
 
-    user_state = StorageKey(bot_id=bot.id, chat_id=user_id, user_id=user_id)
-    lawyer_state = StorageKey(bot_id=bot.id, chat_id=lawyer_id, user_id=lawyer_id)
-    user_context = FSMContext(storage=dp.storage, key=user_state)
-    lawyer_context = FSMContext(storage=dp.storage, key=lawyer_state)
-    await lawyer_context.update_data(ORDER_ID=order_id)
-    await user_context.update_data(ORDER_ID=order_id)
+    user_state = StorageKey(bot_id=bot.id, chat_id=int(user_id), user_id=int(user_id))
+    lawyer_state = StorageKey(bot_id=bot.id, chat_id=int(lawyer_id), user_id=int(lawyer_id))
+    await dp.storage.set_state(key=user_state, state=Consult.lawyer_client_chat)
+    await dp.storage.set_state(key=lawyer_state, state=Consult.lawyer_client_chat)
+    await dp.storage.update_data(key=user_state, data={"ORDER_ID": order_id})
+    await dp.storage.update_data(key=lawyer_state, data={"ORDER_ID": order_id})
+    logger.error(user_state)
+    logger.error(await dp.storage.get_data(key=lawyer_state))
+
     await bot.send_message(chat_id=lawyer_id, text=f'Начат чат по поводу заказа {order_id}',
                            reply_markup=kb.as_markup(resize_keyboard=True))
     await bot.send_message(chat_id=user_id, text=f'Начат чат по поводу заказа {order_id}',
@@ -410,11 +413,8 @@ async def end_chat(message: Message, bot: Bot, state: FSMContext):
 
 async def process_dialog(message: Message, bot: Bot, state: FSMContext):
     logger.info(await state.get_state())
-    if message.text.lower() == 'закончить чат':
-        await end_chat(message, bot, state)
-        return
     from main import dp
-    user_state = StorageKey(bot_id=bot.id, chat_id=message.from_user.id, user_id=message.from_user.id)
+    user_state = StorageKey(bot_id=bot.id, chat_id=int(message.from_user.id), user_id=int(message.from_user.id))
     logger.error(user_state)
     data = await dp.storage.get_data(key=user_state)
     logger.error(data)
@@ -428,6 +428,34 @@ async def process_dialog(message: Message, bot: Bot, state: FSMContext):
 
 async def on_client_confirm_end(call: CallbackQuery, bot: Bot, state: FSMContext):
     order_id = call.data.split('_')[-1]
+    await on_time_confirm_end(order_id)
+    # documents = await get_documents(order_id)
+    # logger.error(order_id)
+    # user_id, lawyer_id, status = await get_order_info_by_order_id(order_id)
+    # media = MediaGroupBuilder(caption='Документы по вашему заказу.')
+    # for doc in documents:
+    #     media.add_document(doc)
+    # kb = InlineKeyboardBuilder()
+    # order_text, documents_ids, cost, day_start, day_end, _, _, = await get_order_additional_info_by_order_id(order_id)
+    # logger.info(order_text, documents_ids)
+    # text = (f'Заказ успешно закрыт. Данные по заказу:'
+    #         f'{order_text}\n'
+    #         f'Цена: {cost}\n'
+    #         f'Дата начала: {day_start}\n'
+    #         f'До: {day_end}\n')
+    # await bot.send_message(chat_id=call.from_user.id, text=text)
+    # await bot.send_media_group(chat_id=call.from_user.id, media=media.build())
+    #
+    # text_to_lawyer = 'Заказ успешно закрыт!'
+    # await bot.send_message(chat_id=lawyer_id, text=text_to_lawyer)
+    #
+    # await update_table(Order,
+    #                    field_values={'order_status': 'close'},
+    #                    where_clause={f'order_id': order_id})
+
+
+async def on_time_confirm_end(order_id):
+    from main import bot
     documents = await get_documents(order_id)
     logger.error(order_id)
     user_id, lawyer_id, status = await get_order_info_by_order_id(order_id)
@@ -442,16 +470,14 @@ async def on_client_confirm_end(call: CallbackQuery, bot: Bot, state: FSMContext
             f'Цена: {cost}\n'
             f'Дата начала: {day_start}\n'
             f'До: {day_end}\n')
-    await bot.send_message(chat_id=call.from_user.id, text=text)
-    await bot.send_media_group(chat_id=call.from_user.id, media=media.build())
-
+    await bot.send_message(chat_id=user_id, text=text)
+    await bot.send_media_group(chat_id=user_id, media=media.build())
     text_to_lawyer = 'Заказ успешно закрыт!'
     await bot.send_message(chat_id=lawyer_id, text=text_to_lawyer)
 
     await update_table(Order,
                        field_values={'order_status': 'close'},
                        where_clause={f'order_id': order_id})
-
 
 async def on_client_dispute_end(call: CallbackQuery, bot: Bot, state: FSMContext):
     order_id = call.data.split('_')[-1]

@@ -234,7 +234,11 @@ async def on_full_end(call: CallbackQuery, bot: Bot, state: FSMContext):
 
     text_to_lawyer = 'Передали информацию клиенту, сообщим вам когда он примет решение по заказу.'
     await call.message.answer(text=text_to_lawyer)
-    # await update_table(Order,
-    #                    field_values={'order_status': 'in_progress'},
-    #                    where_clause={f'order_id': order_id})
+    await update_table(Order,
+                       field_values={'order_status': 'on_verify'},
+                       where_clause={f'order_id': order_id})
+
+    await update_table(Order,
+                       field_values={'order_day_end_actually': 'on_verify'},
+                       where_clause={f'order_id': order_id})
 

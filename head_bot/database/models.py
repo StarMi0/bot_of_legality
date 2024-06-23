@@ -69,6 +69,7 @@ class OrderInfo(Base):
     order_cost = Column(String(255))
     order_day_start = Column(DATE)
     order_day_end = Column(DATE)
+    order_day_end_actually = Column(DATE)
     message_id = Column(String(255))
     group_id = Column(String(255))
 

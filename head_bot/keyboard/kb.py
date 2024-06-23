@@ -1,6 +1,7 @@
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from database.request import get_active_order
 from utils.callbackdata import BranchChoose
 
 select_service = InlineKeyboardBuilder()
@@ -12,10 +13,12 @@ select_service.adjust(1)
 select_service_kb = select_service.as_markup()
 
 
-async def get_main_user_kb():
+async def get_main_user_kb(user_id):
     main_kb = InlineKeyboardBuilder()
-    main_kb.button(text="Заказать услугу", callback_data='get_select_service')
-    main_kb.button(text="Отправить сообщение исполнителю", callback_data='get_active_orders')
+    order_id = await get_active_order(user_id)
+
+    main_kb.button(text="Заказать услугу", callback_data=f'get_select_service')
+    main_kb.button(text="Отправить сообщение исполнителю", callback_data=f'get_active_orders_{order_id}')
     main_kb.adjust(1)
     return main_kb.as_markup()
 
