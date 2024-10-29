@@ -20,8 +20,8 @@ class GoToDevelopTime(CallbackData, prefix='go_to_develop_time'):
 
 
 class ConfirmOrDeleteOffer(CallbackData, prefix='confirmation'):
-    order_id: str
-    lawyer_id: int
+    offer_id: str
+    lawyer_id: str
     confirm: bool
 
 

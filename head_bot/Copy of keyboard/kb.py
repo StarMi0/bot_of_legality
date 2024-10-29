@@ -1,7 +1,7 @@
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from database.request import get_active_order, get_order_info_by_order_id
+from database.request import get_active_order
 from utils.callbackdata import BranchChoose
 
 select_service = InlineKeyboardBuilder()
@@ -18,14 +18,7 @@ async def get_main_user_kb(user_id):
     order_id = await get_active_order(user_id)
 
     main_kb.button(text="Заказать услугу", callback_data=f'get_select_service')
-    if order_id is not None:
-        main_kb.button(text="Отправить сообщение исполнителю", callback_data=f'get_active_orders_{order_id}')
-    if order_id:
-        user_id, lawyer_id, status = await get_order_info_by_order_id(order_id)
-        if (lawyer_id is None or lawyer_id == '') and status == 'active':
-            main_kb.button(text="Отменить заказ", callback_data=f'order_cancel_{order_id}')
-    main_kb.button(text="Написать в поддержку", callback_data='query_to_support')
-
+    main_kb.button(text="Отправить сообщение исполнителю", callback_data=f'get_active_orders_{order_id}')
     main_kb.adjust(1)
     return main_kb.as_markup()
 
@@ -33,7 +26,6 @@ async def get_main_user_kb(user_id):
 async def get_main_lawyer_kb():
     main_kb = InlineKeyboardBuilder()
     main_kb.button(text="Мои заказы", callback_data='get_active_orders_lawyer')
-    main_kb.button(text="Написать в поддержку", callback_data='query_to_support')
     # main_kb.button(text="Отправить сообщение исполнителю", callback_data='get_active_orders')
     main_kb.adjust(1)
     return main_kb.as_markup()

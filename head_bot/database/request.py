@@ -1,314 +1,490 @@
 import asyncio
 import datetime
-import os
-from typing import List
-
+from typing import List, Optional, Tuple
 import aiomysql
-from aiomysql import Connection
 from loguru import logger
+from sqlalchemy import AsyncAdaptedQueuePool, select, update
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
-from utils.config import db_config
-
-my_host = os.getenv('MYSQL_HOST', '77.232.134.200')
-my_user = os.getenv('MYSQL_USER', 'root')
-my_password = os.getenv('DB_ROOT_PASSWORD', '[legality_test]')
-my_database = "URIST_BOT"
+from database.models import User, UserInfo, Order, OrderInfo, Offer, EducationDocument, LawyerInfo, OrderDocuments, \
+    DialogLog
+from utils.config import bot_db, my_password, my_user, my_host, DATABASE_URL
 
 
-async def get_connection() -> Connection:
-    connection = await aiomysql.connect(
-        host=db_config.get('host'),
-        user=db_config.get('user'),
-        password=db_config.get('password'),
-        db='URIST_BOT'
+async def get_connection():
+    engine = create_async_engine(
+        DATABASE_URL,
+        poolclass=AsyncAdaptedQueuePool,  # Указываем класс пула соединений
+        pool_size=5,  # Размер пула соединений (по умолчанию)
+        max_overflow=10,  # Максимальное количество временных соединений, создаваемых при перегрузке
+        pool_timeout=30,  # Время ожидания в секундах перед возбуждением исключения
+        pool_recycle=300
     )
-    return connection
+
+    return engine
 
 
-# Функция для проверки подключения к базе данных
-async def check_db_connection():
+async def user_exist(user_id: str) -> bool:
+    engine = await get_connection()
+
+    async with AsyncSession(engine) as session:
+        async with session.begin():
+            result = await session.execute(select(User).filter_by(user_id=str(user_id)))
+            user = result.scalar_one_or_none()
+            return user is not None
+
+
+async def add_lawyer_info(user_id: str, education: str):
+    engine = await get_connection()
+
     try:
-        connection = await get_connection()
-        if connection:
-            logger.error("Успешное подключение к базе данных")
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                new_lawyer_info = LawyerInfo(user_id=str(user_id), education=education
+                                             )
+                session.add(new_lawyer_info)
+
+            await session.commit()
             return True
-    except aiomysql.Error as e:
-        logger.error(f"Ошибка подключения к базе данных: {e}")
-    return False
-
-
-async def user_exist(user_id: int):
-    try:
-        connection = await get_connection()
-
-        async with connection.cursor() as cur:
-            await cur.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id,))
-            result = await cur.fetchone()
-
-        connection.close()
-        return bool(result)
-    except aiomysql.Error as e:
-        logger.error(f"Ошибка выборки пользователей: {e}")
-    return False
-
-
-async def add_user(user_id: int, user_name: str, user_fio: str, user_date_birth: str, role: str):
-    try:
-        connection = await get_connection()
-        if role not in ['user', 'lawyer', 'admin']:
-            role = 'user'
-        reg_date = datetime.datetime.today().date()
-        async with connection.cursor() as cur:
-            await cur.execute(
-                "INSERT INTO users (user_id, user_name, user_fio, user_date_birth, registration_date, role)"
-                " VALUES (%s, %s, %s, %s, %s, %s)", (user_id, user_name, user_fio, user_date_birth, reg_date, role))
-
-        await connection.commit()
-        connection.close()
-        return True
-    except aiomysql.Error as e:
-        logger.error(f"Ошибка добавления пользователя: {e}")
-    return False
-
-
-async def add_lawyer_info(user_id: int, education: str):
-    try:
-        connection = await get_connection()
-        async with connection.cursor() as cur:
-            await cur.execute("INSERT INTO lawyer_info (user_id, education)"
-                              " VALUES (%s, %s)", (user_id, education))
-
-        await connection.commit()
-        connection.close()
-        return True
-    except aiomysql.Error as e:
+    except Exception as e:
         logger.error(f"Ошибка добавления информации о юристе: {e}")
-    return False
+        return False
+    finally:
+        await engine.dispose()
 
 
-async def get_admins() -> List[int]:
+async def add_user(user_id: str, user_name: str, user_fio: str, user_date_birth: str, role: str):
+    engine = await get_connection()
+
     try:
-        connection = await get_connection()
-        async with connection.cursor() as cur:
-            await cur.execute(
-                "SELECT user_id FROM users WHERE role = 'admin'")
-            admins = await cur.fetchall()
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                # Создаем новый экземпляр модели User
+                new_user = User(
+                    user_id=str(user_id),
+                    user_name=user_name,
+                    user_fio=user_fio,
+                    user_date_birth=user_date_birth,
+                    registration_date=datetime.date.today(),
+                    role=role
+                )
+                # Добавляем пользователя в сессию
+                session.add(new_user)
 
-        connection.close()
-        return admins
-    except aiomysql.Error as e:
-        logger.error(f"Ошибка проверки админов: {e}")
-    return []
-
-
-async def get_user_role(user_id: int) -> str | None:
-    try:
-        connection = await get_connection()
-        async with connection.cursor() as cur:
-            await cur.execute(
-                f"SELECT role FROM users WHERE user_id = {user_id}")
-            role = await cur.fetchone()
-
-        connection.close()
-        logger.error(role[0] if role else None)
-        return role[0] if role else None
-    except aiomysql.Error as e:
-        logger.error(f"Ошибка получения роли пользователя: {e}")
-    return None
-
-
-async def add_order(order_id: str, user_id: int, lawyer_id: int | None, order_status: str, group_id: int):
-    try:
-        connection = await get_connection()
-
-        async with connection.cursor() as cur:
-            await cur.execute("INSERT INTO orders (order_id, user_id, lawyer_id, order_status, group_id)"
-                              " VALUES (%s, %s, %s, %s, %s)", (order_id, user_id, lawyer_id, order_status, group_id))
-
-        await connection.commit()
-        connection.close()
-        return True
-    except aiomysql.Error as e:
+            # Коммитим транзакцию
+            await session.commit()
+            return True
+    except Exception as e:
         logger.error(f"Ошибка добавления пользователя: {e}")
-    return False
+        return False
+    finally:
+        await engine.dispose()
 
 
-async def add_order_info(order_id: str, order_text: str, documents_id: str, order_cost: int | None,
-                         order_day_start: datetime.date | None, order_day_end: datetime.date | None, message_id: str,
-                         group_id: int):
+async def dialog_logger(user_id: str, lawyer_id: str, message_text: str, order_id: str, file_id: str, file_type: str):
+    engine = await get_connection()
+
     try:
-        connection = await get_connection()
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                # Создаем новый экземпляр модели User
+                new_log = DialogLog(
+                    user_id=str(user_id),
+                    lawyer_id=lawyer_id,
+                    message_text=message_text,
+                    file_id=file_id,
+                    file_type=file_type,
+                    order_id=order_id,
+                )
+                # Добавляем пользователя в сессию
+                session.add(new_log)
 
-        async with connection.cursor() as cur:
-            await cur.execute(
-                "INSERT INTO orders_info (order_id, order_text, documents_id, order_cost, order_day_start, "
-                "order_day_end, message_id, group_id)"
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                (order_id, order_text, documents_id, order_cost, order_day_start, order_day_end,
-                 message_id, group_id))
+            # Коммитим транзакцию
+            await session.commit()
+            return True
+    except Exception as e:
+        logger.error(f"Ошибка добавления лога: {e}")
+        return False
+    finally:
+        await engine.dispose()
 
-        await connection.commit()
-        connection.close()
-        return True
-    except aiomysql.Error as e:
+
+async def get_admins() -> List[str]:
+    engine = await get_connection()
+
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                result = await session.execute(select(User).filter_by(role='admin'))
+                admins = result.scalars().all()
+                return [admin.user_id for admin in admins]
+    except Exception as e:
+        logger.error(f"Ошибка проверки админов: {e}")
+        return []
+
+
+async def get_user_role(user_id: str) -> str | None:
+    engine = await get_connection()
+
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                result = await session.execute(select(User.role).filter_by(user_id=str(user_id)))
+                role = result.scalar_one_or_none()
+                return role if role else None
+    except Exception as e:
+        logger.error(f"Ошибка получения роли пользователя: {e}")
+        return None
+
+
+async def get_user_info(user_id: str) -> str | None:
+    engine = await get_connection()
+
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                result = await session.execute(select(User.user_name, User.role).filter_by(user_id=str(user_id)))
+                role = result.fetchone()
+                return role
+    except Exception as e:
+        logger.error(f"Ошибка получения роли пользователя: {e}")
+        return None
+
+
+async def add_order(order_id: str, user_id: str, lawyer_id: str | None, order_status: str, group_id: str) -> int:
+    engine = await get_connection()
+
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                # Проверка наличия активного заказа
+                active_order = await get_active_order(user_id)
+                if active_order:
+                    return 2
+
+                # Если активного заказа нет, добавляем новый заказ
+                new_order = Order(
+                    order_id=order_id,
+                    user_id=str(user_id),
+                    lawyer_id=lawyer_id,
+                    order_status=order_status,
+                    group_id=group_id
+                )
+                session.add(new_order)
+
+            await session.commit()
+            return 0  # Успешное добавление заказа
+    except Exception as e:
+        logger.error(f"Ошибка добавления заказа: {e}")
+        return 1  # Ошибка добавления заказа
+    finally:
+        await engine.dispose()
+
+
+async def add_order_info(order_id: str, order_text: str, documents_id: list[str], order_cost: Optional[str],
+                         order_day_start: Optional[datetime.date], order_day_end: Optional[datetime.date],
+                         message_id: str,
+                         group_id: str) -> bool:
+    engine = await get_connection()
+
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                new_order_info = OrderInfo(
+                    order_id=order_id,
+                    order_text=order_text,
+                    order_cost=order_cost,
+                    order_day_start=order_day_start,
+                    order_day_end=order_day_end,
+                    message_id=message_id,
+                    group_id=group_id
+                )
+                session.add(new_order_info)
+
+                # Добавление документов
+                if documents_id:
+                    for doc_id in documents_id:
+                        new_order_document = OrderDocuments(
+                            order_id=order_id,
+                            document_id=doc_id
+                        )
+                        session.add(new_order_document)
+
+            await session.commit()
+            return True
+    except Exception as e:
         logger.error(f"Ошибка внесения дополнительной информации: {e}")
-    return False
+        return False
 
 
 async def get_order_info_by_order_id(order_id: str) -> tuple | None:
-    try:
-        connection = await get_connection()
-        async with connection.cursor() as cur:
-            await cur.execute(
-                f"SELECT user_id, lawyer_id, order_status FROM orders WHERE order_id = {order_id}")
-            info = await cur.fetchone()
+    engine = await get_connection()
 
-        connection.close()
-        logger.error(info)
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(Order.user_id, Order.lawyer_id, Order.order_status).filter_by(order_id=order_id)
+                )
+                info = result.one_or_none()
         return info
-    except aiomysql.Error as e:
+    except Exception as e:
         logger.error(f"Ошибка получения информации по заказу: {e}")
-    return None
+        return None
 
 
-async def get_order_additional_info_by_order_id(order_id: str) -> tuple | None:
+async def get_order_additional_info_by_order_id(order_id: str) -> Optional[Tuple]:
+    engine = await get_connection()
+
     try:
-        connection = await get_connection()
-        async with connection.cursor() as cur:
-            await cur.execute(
-                f"SELECT order_text, documents_id, order_cost, order_day_start, order_day_end, message_id, group_id"
-                f" FROM orders_info WHERE order_id = '{order_id}'")
-            info = await cur.fetchone()
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(
+                        OrderInfo.order_text,
+                        OrderInfo.order_cost,
+                        OrderInfo.order_day_start,
+                        OrderInfo.order_day_end,
+                        OrderInfo.message_id,
+                        OrderInfo.group_id,
+                        OrderDocuments.document_id
+                    ).join(OrderDocuments, OrderInfo.order_id == OrderDocuments.order_id,
+                           isouter=True)  # Use isouter=True for a left join
+                    .filter(OrderInfo.order_id == order_id)
+                )
 
-        connection.close()
-        logger.error(info)
-        return info
-    except aiomysql.Error as e:
+                info = result.all()
+                if not info:
+                    return None
+
+                order_info = info[0]
+                documents = [row.document_id for row in info if
+                             row.document_id is not None]  # Handle cases where document_id might be None
+
+                return (
+                    order_info.order_text,
+                    documents,
+                    order_info.order_cost,
+                    order_info.order_day_start,
+                    order_info.order_day_end,
+                    order_info.message_id,
+                    order_info.group_id
+                )
+    except Exception as e:
         logger.error(f"Ошибка получения дополнительной информации по заказу: {e}")
-    return None
+        return None
 
 
-async def get_active_order(user_id: int) -> str | None:
+async def get_active_order(user_id: str) -> str | None:
+    engine = await get_connection()
+
     try:
-        connection = await get_connection()
-        async with connection.cursor() as cur:
-            await cur.execute(
-                f"SELECT order_id"
-                f"FROM orders WHERE user_id = {user_id}")
-            order_id = await cur.fetchone()
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(Order.order_id).where(Order.user_id == str(user_id), Order.order_status.in_(['active', 'in_search', 'in_progress']))
+                )
+                order_id = result.scalar_one_or_none()
 
-        connection.close()
-        return order_id[0] if order_id else None
-    except aiomysql.Error as e:
-        logger.error(f"Ошибка получения дополнительной информации по заказу: {e}")
-    return None
+        return order_id if order_id else None
+    except Exception as e:
+        logger.error(f"Ошибка получения активного заказа: {e}")
+        return None
 
 
-async def get_active_order_lawyer_id(user_id: int) -> int | None:
+async def get_active_order_by_lawyer(user_id: str) -> list:
+    engine = await get_connection()
+
     try:
-        connection = await get_connection()
-        async with connection.cursor() as cur:
-            await cur.execute(
-                f"SELECT lawyer_id"
-                f"FROM orders WHERE user_id = {user_id}")
-            lawyer_id = await cur.fetchone()
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(Order.order_id).filter(Order.lawyer_id == str(user_id), Order.order_status.in_(['active', 'in_search', 'in_progress']))
+                )
+                order_id = result.fetchall()
 
-        connection.close()
-        return lawyer_id[0] if lawyer_id else None
-    except aiomysql.Error as e:
-        logger.error(f"Ошибка получения ID сполнителя: {e}")
-    return None
+        return [i for i in order_id[0]]
+    except Exception as e:
+        logger.error(f"Ошибка получения активного заказа: {e}")
+        return []
 
 
-async def update_table(table_name: str, field_values: dict, where_clause: str):
+async def get_active_order_lawyer_id(user_id: str, order_id: str) -> str | None:
+    engine = await get_connection()
+
     try:
-        connection = await get_connection()
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(Order.lawyer_id).filter_by(user_id=str(user_id), order_id=order_id)
+                )
+                lawyer_id = result.scalar_one_or_none()
 
-        async with connection.cursor() as cur:
-            # Generate SET clause for SQL query
-            set_clause = ", ".join([f"{field} = %s" for field in field_values.keys()])
-            values = tuple(field_values.values())
+        return lawyer_id if lawyer_id else None
+    except Exception as e:
+        logger.error(f"Ошибка получения ID исполнителя: {e}")
+        return None
 
-            # Construct SQL query
-            if where_clause:
-                logger.error(where_clause)
-                sql = f"UPDATE {table_name} SET {set_clause} WHERE {where_clause}"
-            else:
-                sql = f"UPDATE {table_name} SET {set_clause}"
 
-            # Execute the SQL query
-            await cur.execute(sql, values)
+async def update_table(table, field_values: dict, where_clause: dict):
+    engine = await get_connection()
 
-        await connection.commit()
-        connection.close()
-    except aiomysql.Error as e:
-        logger.error(f"Ошибка добавления пользователя: {e}")
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                stmt = update(table).values(**field_values)
+
+                # Apply where clause
+                if where_clause:
+                    for key, value in where_clause.items():
+                        stmt = stmt.where(getattr(table, key) == value)
+
+                # Execute the SQL query
+                await session.execute(stmt)
+
+            await session.commit()
+    except Exception as e:
+        logger.error(f"Ошибка обновления таблицы: {e}")
     return False
 
 
-async def add_offer(order_id: str, lawyer_id: int, order_cost: int, develop_time: int):
+async def add_offer(offer_id: str, order_id: str, lawyer_id: str, order_cost: int, develop_time: int):
+    engine = await get_connection()
+
     try:
-        connection = await get_connection()
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                new_offer = Offer(
+                    offer_id=offer_id,
+                    order_id=order_id,
+                    lawyer_id=str(lawyer_id),
+                    order_cost=order_cost,
+                    develop_time=develop_time
+                )
+                session.add(new_offer)
 
-        async with connection.cursor() as cur:
-            await cur.execute("""
-                INSERT INTO offers (order_id, lawyer_id, order_cost, develop_time)
-                VALUES (%s, %s, %s, %s)
-            """, (order_id, lawyer_id, order_cost, develop_time))
-
-        await connection.commit()
-        connection.close()
+            await session.commit()
     except Exception as e:
         logger.error(f"Ошибка добавления предложения: {e}")
 
 
-async def get_offers_by_order_id(order_id: str):
+async def get_offer_by_offer_id(offer_id: str) -> list | None:
+    engine = await get_connection()
+
     try:
-        connection = await get_connection()
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(Offer.order_id, Offer.lawyer_id, Offer.order_cost, Offer.develop_time).filter_by(
+                        offer_id=offer_id)
+                )
+                offers = result.fetchone()
 
-        async with connection.cursor() as cur:
-            await cur.execute("""
-                SELECT lawyer_id, order_cost, develop_time FROM offers WHERE order_id = %s
-            """, (order_id,))
-            offers = await cur.fetchone()
-
-        connection.close()
-        return offers
+        return offers if offers else None
     except Exception as e:
-        logger.error(f"Ошибка получения предложения: {e}")
+        logger.error(f"Ошибка получения предложений: {e}")
+        return None
+
+
+async def get_offers_by_lawyer_order_id(lawyer_id: str, order_id: str) -> list | None:
+    engine = await get_connection()
+
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(Offer.lawyer_id, Offer.order_cost, Offer.develop_time).filter(Offer.order_id == order_id,
+                                                                                         Offer.lawyer_id == lawyer_id)
+                )
+                offers = result.fetchone()
+
+        return offers if offers else None
+    except Exception as e:
+        logger.error(f"Ошибка получения предложений: {e}")
+        return None
 
 
 async def add_document(user_id, document_data):
+    engine = await get_connection()
+
     try:
-        connection = await get_connection()
-        async with connection.cursor() as cur:
-            await cur.execute(
-                """
-                INSERT INTO education_documents (user_id, document)
-                VALUES (%s, %s)
-                """,
-                (user_id, document_data)
-            )
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                new_document = EducationDocument(user_id=str(user_id), document=document_data)
+                session.add(new_document)
+
+            await session.commit()
     except Exception as e:
         logger.error(f"Ошибка добавления файла: {e}")
+    finally:
+        await engine.dispose()
 
 
-async def get_document(pool, user_id):
+async def add_order_document(user_id, document_data):
+    engine = await get_connection()
+
     try:
-        connection = await get_connection()
-        async with connection.cursor(aiomysql.DictCursor) as cur:
-            await cur.execute(
-                """
-                SELECT document
-                FROM education_documents
-                WHERE user_id = %s
-                """,
-                (user_id,)
-            )
-            result = await cur.fetchone()
-            if result:
-                return result['document']
-            else:
-                return None
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                new_document = EducationDocument(user_id=str(user_id), document=document_data)
+                session.add(new_document)
+
+            await session.commit()
+    except Exception as e:
+        logger.error(f"Ошибка добавления файла: {e}")
+    finally:
+        await engine.dispose()
+
+
+async def get_order_document(document_id, order_id):
+    engine = await get_connection()
+
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                new_document = OrderDocuments(document_id=str(document_id), order_id=order_id)
+                session.add(new_document)
+
+            await session.commit()
+            return 0
+    except Exception as e:
+        logger.error(f"Ошибка добавления файла: {e}")
+        return 1
+    finally:
+        await engine.dispose()
+
+
+async def get_documents(order_id):
+    engine = await get_connection()
+
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(OrderDocuments.document_id)
+                    .filter(OrderDocuments.order_id == str(order_id))
+                )
+                documents = result.fetchall()
+
+        return [doc[0] for doc in documents]
     except Exception as e:
         logger.error(f"Ошибка получения файла: {e}")
+    finally:
+        await engine.dispose()
+
+
+# asyncio.run(get_user_role('12345'))
+# print(print(asyncio.run(add_order(order_id='1241252152', user_id='6903479498', lawyer_id=None, order_status='in_search',
+#                                   group_id='12412412'))))
+# asyncio.run(add_order_info(order_id='412142124412', order_text='123123', documents_id=['123123','12313'], order_cost=None,
+#                              order_day_start=None, order_day_end=None, message_id='123123,123123', group_id='213213'))
+
+
+# print(asyncio.run(update_table(Order, field_values={'order_status': 'close'
+#                                                         },
+#                                where_clause={f'order_id': 'bd1feeb5b6f649b78a72fd00f7c2abbd'})))
+#
+# print(getattr(OrderInfo, 'order_id'))
+# print(asyncio.run(get_order_additional_info_by_order_id('e89b422b6eed42038e3976b5b291c77b')))
+# print(asyncio.run(get_active_order('6903479498')))
+# print(asyncio.run(get_active_order_by_lawyer('1165691824')))
