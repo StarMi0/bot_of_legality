@@ -10,7 +10,6 @@ from database.request import add_order, get_active_order, get_active_order_lawye
     get_users, get_admins, \
     get_order_info_by_order_id, update_order_info, \
     get_active_order_and_partner, save_message
-from keyboard.kb import get_main_user_kb
 from keyboard.kb import user_keyboard
 from loguru import logger
 from routers.states import SupportStates, Consult, LawyerResponse, PaymentResponse, DialogState
@@ -123,16 +122,14 @@ async def send_active_orders(call: CallbackQuery, bot: Bot, state: FSMContext):
             Если исполнитель по существующему заказу не выбран
             """
             await bot.send_message(chat_id=call.from_user.id,
-                                   text='Вы еще не выбрали исполнителя по заказу.',
-                                   reply_markup=await get_main_user_kb(call.from_user.id))
+                                   text='Вы еще не выбрали исполнителя по заказу.')
         else:
             """
             Вывод информации по текущему заказу
             """
             order_info = get_order_info_by_order_id(order_id)
             await bot.send_message(chat_id=call.from_user.id,
-                                   text=f'У вас уже имеется действующий заказ:\n{order_info}',
-                                   reply_markup=await get_main_user_kb(call.from_user.id))
+                                   text=f'У вас уже имеется действующий заказ:\n{order_info}')
     else:
         choose_topic_kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Юридическая консультация", callback_data="topic_legal_advice")],
