@@ -1,15 +1,9 @@
 from aiogram import Router, Bot, F
 from aiogram.filters import BaseFilter, Command
-from aiogram.enums import ContentType
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.storage.base import StorageKey
 from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
-from aiogram.utils.media_group import MediaGroupBuilder
-from loguru import logger
 
-from database.request import get_lawyers, end_order, get_admins, add_offer, get_active_order_by_lawyer, get_order_additional_info_by_order_id, \
-    get_order_info_by_order_id, get_offers_by_lawyer_order_id, get_order_document, get_documents
+from database.request import get_lawyers, end_order, get_admins, get_active_order_by_lawyer, get_order_info_by_order_id
 from keyboard.kb import lawyer_keyboard
 from utils.states import EndOrder
 

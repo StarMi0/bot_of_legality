@@ -1,9 +1,4 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-from aiogram.utils.keyboard import InlineKeyboardBuilder
-
-from database.request import get_active_order, get_order_info_by_order_id
-from utils.callbackdata import BranchChoose
-
 
 user_keyboard = ReplyKeyboardMarkup(
     keyboard=[

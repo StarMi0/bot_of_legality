@@ -1,23 +1,19 @@
-from datetime import datetime, timedelta
 import uuid
+from datetime import datetime, timedelta
 
 from aiogram import Router, Bot, F
 from aiogram.filters import BaseFilter, Command
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.storage.base import StorageKey
-from aiogram.utils.media_group import MediaGroupBuilder
-from loguru import logger
-
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
-
-from database.request import add_order, update_table, get_active_order, get_active_order_lawyer_id, \
-    add_order_info, get_order_additional_info_by_order_id, get_users, get_admins, \
-    get_order_info_by_order_id, get_offer_by_offer_id, get_documents, get_user_info, update_order_info, \
-    get_active_order_and_partner, save_message, get_chat_history
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from database.request import add_order, get_active_order, get_active_order_lawyer_id, \
+    get_users, get_admins, \
+    get_order_info_by_order_id, update_order_info, \
+    get_active_order_and_partner, save_message
+from keyboard.kb import get_main_user_kb
 from keyboard.kb import user_keyboard
+from loguru import logger
 from routers.states import SupportStates, Consult, LawyerResponse, PaymentResponse, DialogState
-from keyboard.kb import select_service_kb, get_main_user_kb, get_main_lawyer_kb
 from utils.config import group_ID as lawyers_group
 
 router = Router(name=__name__)
