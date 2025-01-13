@@ -8,7 +8,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.utils.media_group import MediaGroupBuilder
 from loguru import logger
 
-from database.request import get_lawyers, add_offer, get_active_order_by_lawyer, get_order_additional_info_by_order_id, \
+from database.request import get_lawyers, end_order, get_admins, add_offer, get_active_order_by_lawyer, get_order_additional_info_by_order_id, \
     get_order_info_by_order_id, get_offers_by_lawyer_order_id, get_order_document, get_documents
 from keyboard.kb import lawyer_keyboard
 from utils.states import EndOrder
@@ -143,9 +143,8 @@ async def receive_final_files(message: Message, bot: Bot, state: FSMContext):
     files.append(message)
     await state.update_data(files=files)
 
-    # Установка статуса заказа
-    order_status = "end"
-    user_id = ""
+    order_info = await get_order_info_by_order_id(order_id)
+    user_id = order_info[0]
 
     try:
         # Отправляем текст и файлы клиенту
@@ -171,11 +170,82 @@ async def receive_final_files(message: Message, bot: Bot, state: FSMContext):
                                    reply_markup=keyboard)
 
 
-@router.message.callback_query(F.data.startswith("complete_order_"))
+@router.callback_query(F.data.startswith("complete_order_"))
 async def complete_order_by_user(call: CallbackQuery, state: FSMContext):
     order_id = call.data.split("_")[1]
+    # Получаем данные из состояния
+    data = await state.get_data()
+    lawyer_id = data.get("lawyer_id")
+
+    # Установка статуса заказа
+    order_status = "completed"
+    result = await end_order(order_id, order_status)  # end_order должен быть реализован для обновления статуса
+
+    if result:
+        # Отправляем сообщение пользователю
+        await call.message.answer(
+            "Заказ успешно завершен. Спасибо за использование нашего сервиса! "
+            "Мы рады были вам помочь. Если у вас остались вопросы, обращайтесь в поддержку."
+        )
+
+        # Уведомляем юриста о завершении заказа
+        if lawyer_id:
+            await call.bot.send_message(
+                chat_id=lawyer_id,
+                text=f"Клиент завершил заказ #{order_id}. Спасибо за вашу работу!"
+            )
+    else:
+        # Обрабатываем ошибку завершения заказа
+        await call.message.answer(
+            "Произошла ошибка при завершении заказа. Пожалуйста, попробуйте снова или обратитесь в поддержку."
+        )
+    await state.clear()
 
 
-@router.message.callback_query(F.data.startswith("support_order_"))
+@router.callback_query(F.data.startswith("support_order_"))
 async def support_order_by_user(call: CallbackQuery, state: FSMContext):
     order_id = call.data.split("_")[1]
+
+    # Запрашиваем сообщение у пользователя
+    await call.message.answer(
+        "Опишите вашу проблему или вопрос по заказу. Вы также можете прикрепить файлы, если это необходимо."
+    )
+    await state.update_data(order_id=order_id)
+    await state.set_state(EndOrder.MESSAGE_TO_ADMIN)
+
+
+@router.message(EndOrder.MESSAGE_TO_ADMIN)
+async def handle_support_message(message: Message, state: FSMContext):
+    data = await state.get_data()
+    user_id = data.get("user_id")
+    lawyer_id = data.get("lawyer_id")
+    final_text = data.get("final_text")
+    files = data.get("files", [])
+    order_id = data.get("order_id")
+
+    # Получаем список администраторов
+    admins = await get_admins()
+    # Формируем текст с полной информацией
+    order_details = (
+        f"Обращение в поддержку по заказу #{order_id}:\n"
+        f"Статус заказа: ЗАВЕРШЕН\n"
+        f"ID пользователя: {user_id}\n"
+        f"ID юриста: {lawyer_id}\n\n"
+        f"Сообщение от юриста:\n{final_text}"
+    )
+
+    # Отправляем сообщение и файлы администраторам
+    for admin_id in admins:
+        await message.bot.send_message(
+            chat_id=admin_id,
+            text=order_details
+        )
+        for file_id in files:
+            await message.bot.send_document(chat_id=admin_id, document=file_id)
+
+    # Уведомляем пользователя
+    await message.answer(
+        "Ваше сообщение отправлено в поддержку. Мы свяжемся с вами в ближайшее время. Спасибо за ваше терпение!"
+    )
+    await state.clear()
+

@@ -32,5 +32,5 @@ class DialogState(StatesGroup):
 class EndOrder(StatesGroup):
     SEND_FINAL_TEXT = State()
     SEND_FINAL_FILES = State()
-    SAVE_FINAL_FILES = State()
+    MESSAGE_TO_ADMIN = State()
 

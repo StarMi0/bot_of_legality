@@ -614,3 +614,25 @@ async def get_chat_history(order_id):
         logger.error(f"Ошибка получения истории чата: {e}")
     finally:
         await engine.dispose()
+
+
+async def end_order(order_id: str,
+                    order_status: Optional[str]) -> bool:
+    engine = await get_connection()
+
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                await session.execute(
+                    update(OrderInfo)
+                    .where(OrderInfo.order_id == order_id)
+                    .values(
+                        order_status=order_status  # Обновляем статус заказа
+                    )
+                )
+
+            await session.commit()
+            return True
+    except Exception as e:
+        logger.error(f"Ошибка обновления информации по заказу: {e}")
+        return False
