@@ -20,16 +20,13 @@ ENV DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
 ENV BOT_TOKEN=${BOT_TOKEN}
 # Group ID's
 ENV CONSULT_GROUP_ID=${CONSULT_GROUP_ID}
-ENV AUTO_GROUP_ID=${AUTO_GROUP_ID}
-ENV AUDIT_GROUP_ID=${AUDIT_GROUP_ID}
-ENV ALL_CONSULT_ID=${ALL_CONSULT_ID}
 
-COPY ./head_bot /app
+COPY /bot /app
 
 # Устанавливаем зависимости из requirements.txt
 RUN cd /app
 RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r req.txt
 
 # Запуск вашего бота
 CMD ["python", "/app/main.py"]
