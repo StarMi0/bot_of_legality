@@ -2,31 +2,21 @@ FROM python:3.10
 LABEL authors="Ramzan"
 LABEL maintainer="Legality_bot"
 
-# Установите Git, чтобы скачать репозиторий GitHub
-RUN apt-get update && apt-get install -y git
+# Используем Python как базовый образ
+FROM python:3.11-slim
 
-# Создайте рабочий каталог внутри контейнера
+# Устанавливаем рабочую директорию
 WORKDIR /app
 
-# BOT tokens and data
-ENV BOT_TOKEN=${BOT_TOKEN}
-ENV GIT_AUTH_TOKEN=${GIT_AUTH_TOKEN}
-ENV TOKEN_ADMIN=${TOKEN_ADMIN}
-# DB data
-ENV MYSQL_NAME=${MYSQL_DATABASE}
-ENV MYSQL_HOST=${MYSQL_HOST}
-ENV MYSQL_USER=${MYSQL_USER}
-ENV DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
-ENV BOT_TOKEN=${BOT_TOKEN}
-# Group ID's
-ENV CONSULT_GROUP_ID=${CONSULT_GROUP_ID}
+# Копируем файлы из текущей директории в контейнер
+COPY . /app
 
-COPY /bot /app
-
-# Устанавливаем зависимости из requirements.txt
-RUN cd /app
-RUN pip install --upgrade pip
+# Устанавливаем зависимости
 RUN pip install --no-cache-dir -r req.txt
 
-# Запуск вашего бота
-CMD ["python", "/app/main.py"]
+# Указываем PDF-файл как часть приложения
+COPY offer_contract.pdf /app/offer_contract.pdf
+
+# Запускаем бота
+CMD ["python", "main.py"]
+

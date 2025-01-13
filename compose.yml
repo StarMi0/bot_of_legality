@@ -33,7 +33,7 @@ services:
 
   telegram-bot:
     build:
-      context: .  # Контекст сборки - текущий каталог, где находится Dockerfile
+      context: ./bot  # Указываем каталог с ботом
     environment:
       # bot env data
       BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
@@ -44,15 +44,16 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
     volumes:
-      - .:/app  # Примонтировать текущий каталог (с Dockerfile) внутрь контейнера в /app
-    restart: always  # Всегда перезапускать контейнер
-    command: python /app/main.py  # Команда для запуска вашего бота
+      - ./bot:/app  # Примонтировать папку bot внутрь контейнера
+    restart: always
+    command: python /app/main.py
     depends_on:
       - db
     ports:
-      - "8081:8080"  # Проброс порта для доступа
+      - "8081:8080"  # Проброс порта для доступа (если нужен)
     networks:
       - mysql-database
+
 
   redis:
     image: "redis:latest"
