@@ -1,6 +1,6 @@
 import aioredis
 import pickle
-from bot.utils.config import redis_host
+from utils.config import redis_host
 from aioredis import Redis
 
 

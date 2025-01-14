@@ -1,7 +1,7 @@
 import aiomysql
 from loguru import logger
 
-from bot.database.models import Base
+from database.models import Base
 from sqlalchemy.ext.asyncio import create_async_engine
 
 

@@ -5,7 +5,7 @@ from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKe
 
 from database.request import get_lawyers, end_order, get_admins, get_active_order_by_lawyer, get_order_info_by_order_id
 from keyboard.kb import lawyer_keyboard
-from utils.states import EndOrder
+from routers.states import EndOrder
 
 router = Router(name=__name__)
 

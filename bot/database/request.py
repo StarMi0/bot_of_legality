@@ -4,9 +4,9 @@ from loguru import logger
 from sqlalchemy import AsyncAdaptedQueuePool, select, update
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
-from bot.database.models import User, Order, OrderInfo, Offer, EducationDocument, LawyerInfo, OrderDocuments, \
+from database.models import User, Order, OrderInfo, Offer, EducationDocument, LawyerInfo, OrderDocuments, \
     DialogLog
-from bot.utils.config import DATABASE_URL
+from utils.config import DATABASE_URL
 
 
 async def get_connection():
