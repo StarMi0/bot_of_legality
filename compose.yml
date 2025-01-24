@@ -1,8 +1,6 @@
-version: '3'
-
 services:
   db:
-    image: mysql:latest
+    image: mysql:8.0
     restart: unless-stopped
     container_name: mysql-db
     command: --default-authentication-plugin=mysql_native_password
@@ -40,8 +38,8 @@ services:
       TOKEN_ADMIN: ${TOKEN_ADMIN}
       # DB env data
       MYSQL_DATABASE: legality
-      MYSQL_HOST: ${MYSQL_HOST}
-      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_HOST: db
+      MYSQL_USER: root
       DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
     volumes:
       - ./bot:/app  # Примонтировать папку bot внутрь контейнера
@@ -63,14 +61,13 @@ services:
     ports:
       - "6379:6379"
     networks:
-      - my_network
+      - mysql-database
+
+networks:
+  mysql-database:
+    driver: bridge
 
 secrets:
   git_ssh_key:
     file: .env
 
-networks:
-  mysql-database:
-    driver: bridge
-  my_network:
-    driver: bridge
