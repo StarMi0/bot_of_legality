@@ -35,7 +35,6 @@ services:
     environment:
       # bot env data
       BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      TOKEN_ADMIN: ${TOKEN_ADMIN}
       # DB env data
       MYSQL_DATABASE: legality
       MYSQL_HOST: db
