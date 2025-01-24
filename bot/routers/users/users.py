@@ -133,7 +133,11 @@ async def send_active_orders(call: CallbackQuery, bot: Bot, state: FSMContext):
     else:
         choose_topic_kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Юридическая консультация", callback_data="topic_legal_advice")],
-            [InlineKeyboardButton(text="Консультация по вопросам авто", callback_data="topic_auto_advice")],
+            [InlineKeyboardButton(text="Авто юристы", callback_data="topic_auto_advice")],
+            [InlineKeyboardButton(text="Юристы по гражданским делам", callback_data="topic_civil_cases")],
+            [InlineKeyboardButton(text="Юристы", callback_data="topic_lawyers")],
+            [InlineKeyboardButton(text="Судебно правовые заключения", callback_data="topic_legal_opinions")],
+            [InlineKeyboardButton(text="Адвокаты", callback_data="topic_lawyers")],
             [InlineKeyboardButton(text="Юридический аудит", callback_data="topic_legal_audit")],
         ])
 
