@@ -6,7 +6,7 @@ from aiogram import Router, Bot, F
 from aiogram.filters import BaseFilter, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton, \
-    InputFile
+    InputFile, FSInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from database.request import add_order, get_active_order, get_active_order_lawyer_id, \
     get_users, get_admins, get_active_order_and_partner, \
@@ -423,15 +423,14 @@ async def choose_lawyer(callback: CallbackQuery, state: FSMContext):
 
     # Отправка PDF-файла с договором оферты
     try:
-        # Открываем файл и передаем его как объект в InputFile
-        with open(offer_contract_path, "rb") as file:
-            offer_contract = InputFile(file, filename="offer_contract.pdf")  # Оборачиваем файл в InputFile
 
-            await callback.bot.send_document(
-                chat_id=user_id,
-                document=offer_contract,
-                caption="Пожалуйста, ознакомьтесь с договором оферты перед оплатой.",
-            )
+        offer_contract = FSInputFile(offer_contract_path)  # Оборачиваем файл в InputFile
+
+        await callback.bot.send_document(
+            chat_id=user_id,
+            document=offer_contract,
+            caption="Пожалуйста, ознакомьтесь с договором оферты перед оплатой.",
+        )
 
         # Переход к следующему этапу
         await state.update_data(order_id=order_id, lawyer_id=lawyer_id)
