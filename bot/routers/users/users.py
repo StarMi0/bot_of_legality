@@ -405,6 +405,10 @@ async def confirm_response(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.startswith("choose_"))
 async def choose_lawyer(callback: CallbackQuery, state: FSMContext):
     _, order_id, lawyer_id, price, deadline = callback.data.split("_")
+    # Проверяем текущее состояние
+    if await state.get_state() is None:
+        # Устанавливаем начальное состояние, если оно отсутствует
+        await state.set_state(PaymentResponse.CONFIRM_RESPONSE)
     await state.update_data(
         order_id=order_id,
         lawyer_id=lawyer_id,
