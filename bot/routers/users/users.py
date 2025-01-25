@@ -411,7 +411,7 @@ async def choose_lawyer(callback: CallbackQuery, state: FSMContext):
     )
     # Проверяем статус заказа и обновляем информацию о юристе
     order_info = await get_order_info_by_order_id(order_id)
-    if not order_info or order_info[1]:  # Если заказ уже взят юристом
+    if not order_info or order_info[1] == "in_progress":  # Если заказ уже взят юристом
         await callback.message.answer("Этот заказ уже был передан другому юристу.")
         return
         # Получаем user_id клиента из информации о заказе
