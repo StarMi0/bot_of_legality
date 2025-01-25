@@ -241,14 +241,6 @@ async def add_order_info(order_id: str, lawyer_id: Optional[str] = None,
                 )
                 session.add(new_order_status)
 
-                # Принудительная запись заказа перед добавлением документов
-                await session.flush()
-
-                new_status = Order(
-                    order_status="in_progress"
-                )
-                session.add(new_status)
-
             await session.commit()
             return True
     except Exception as e:
