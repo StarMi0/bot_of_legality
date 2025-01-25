@@ -15,8 +15,7 @@ class User(Base):
     role = Column(Enum('user', 'lawyer', 'admin', name='user_roles'), default='user')
 
     orders_as_user = relationship("Order", foreign_keys="[Order.user_id]", back_populates="user")
-    orders_as_lawyer = relationship("Order", foreign_keys="[Order.lawyer_id]", back_populates="lawyer")
-    offers = relationship("Offer", back_populates="lawyer")
+    orders_as_lawyer = relationship("OrderInfo", foreign_keys="[OrderInfo.lawyer_id]", back_populates="lawyer")
     user_info = relationship("UserInfo", uselist=False, back_populates="user")
     lawyer_info = relationship("LawyerInfo", uselist=False, back_populates="user")
     education_documents = relationship("EducationDocument", back_populates="user")
