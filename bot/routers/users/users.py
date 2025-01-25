@@ -458,15 +458,9 @@ async def choose_lawyer(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data.startswith("pay_"))
 async def check_payment(callback: CallbackQuery, state: FSMContext):
-    print(f"Состояние в начале check_payment: {await state.get_state()}")
-    print(f"Данные в check_payment: {await state.get_data()}")
-
     order_id = callback.data.split("_")[1]
     # Проверка состояния
     data = await state.get_data()
-    print(f"Сравнение на несоответствие id заказа: {data.get('order_id') != order_id}\n"
-          f"{data.get('order_id'), type(data.get('order_id'))}\n"
-          f"{order_id, type(order_id)}")
     if data.get("order_id") != order_id:
         await callback.message.answer("Произошла ошибка при обработке заказа. Попробуйте снова.")
         return
@@ -482,17 +476,13 @@ async def check_payment(callback: CallbackQuery, state: FSMContext):
         try:
             order_day_start = datetime.today().date()
             order_day_end = datetime.today().date() + timedelta(days=int(data.get("deadline")))
-            print(f"Данные перед добавлением в БД: {order_id, data}")
-            lawyer_id = data.get("lawyer_id")
-            order_cost = data.get("price")
-            develop_time = data.get("deadline")
             added_to_db = await add_order_info(
                 order_id=order_id,
-                lawyer_id=lawyer_id,
-                order_cost=order_cost,
+                lawyer_id=data.get("lawyer_id"),
+                order_cost=data.get("price"),
                 order_day_start=order_day_start,
                 order_day_end=order_day_end,
-                develop_time=develop_time,
+                develop_time=data.get("deadline"),
                 message_id=None,
                 order_status="in_progress"
             )
