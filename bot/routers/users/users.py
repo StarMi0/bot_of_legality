@@ -405,13 +405,16 @@ async def confirm_response(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.startswith("choose_"))
 async def choose_lawyer(callback: CallbackQuery, state: FSMContext):
     _, order_id, lawyer_id, price, deadline = callback.data.split("_")
-    print(order_id, lawyer_id, price, deadline)
     await state.update_data(
         order_id=order_id,
         lawyer_id=lawyer_id,
         price=price,
         deadline=deadline
     )
+
+    # Проверяем сохраненные данные
+    data = await state.get_data()
+    print(f"Состояние после сохранения: {data}")
 
     # Проверяем статус заказа и обновляем информацию о юристе
     order_info = await get_order_info_by_order_id(order_id)
@@ -442,7 +445,6 @@ async def choose_lawyer(callback: CallbackQuery, state: FSMContext):
                 [InlineKeyboardButton(text="Оплатить", callback_data=f"pay_{order_id}")]
             ])
         )
-        await state.set_state(PaymentResponse.AWAITING_PAYMENT)
 
     except Exception as e:
         logger.error(f"Ошибка при отправке договора оферты: {e, os.path.exists(offer_contract_path)}")
