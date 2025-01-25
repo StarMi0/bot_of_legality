@@ -177,6 +177,11 @@ async def add_order(order_id: str, user_id: str, order_text: str | None, order_s
                 if active_order:
                     return 2
 
+                new_order_info = OrderInfo(
+                    order_id=order_id
+                )
+                session.add(new_order_info)
+
                 # Если активного заказа нет, добавляем новый заказ
                 new_order = Order(
                     order_id=order_id,
@@ -324,7 +329,12 @@ async def get_active_order_by_lawyer(lawyer_id: str) -> str | None:
         async with AsyncSession(engine) as session:
             async with session.begin():
                 result = await session.execute(
-                    select(Order.order_id).where(Order.lawyer_id == lawyer_id, Order.order_status.in_(['active', 'in_search', 'in_progress']))
+                    select(OrderInfo.order_id)
+                    .join(Order, OrderInfo.order_id == Order.order_id)
+                    .where(
+                        OrderInfo.lawyer_id == lawyer_id,
+                        Order.order_status.in_(['active', 'in_search', 'in_progress'])
+                    )
                 )
                 order_id = result.scalar_one_or_none()
 
@@ -341,7 +351,7 @@ async def get_active_order_lawyer_id(user_id: str, order_id: str) -> str | None:
         async with AsyncSession(engine) as session:
             async with session.begin():
                 result = await session.execute(
-                    select(Order.lawyer_id).filter_by(user_id=str(user_id), order_id=order_id)
+                    select(OrderInfo.lawyer_id).filter_by(user_id=str(user_id), order_id=order_id)
                 )
                 lawyer_id = result.scalar_one_or_none()
 
