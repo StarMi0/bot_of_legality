@@ -464,6 +464,9 @@ async def check_payment(callback: CallbackQuery, state: FSMContext):
     order_id = callback.data.split("_")[1]
     # Проверка состояния
     data = await state.get_data()
+    print(f"Сравнение на несоответствие id заказа: {data.get('order_id') != order_id}\n"
+          f"{data.get('order_id'), type(data.get('order_id'))}\n"
+          f"{order_id, type(order_id)}")
     if data.get("order_id") != order_id:
         await callback.message.answer("Произошла ошибка при обработке заказа. Попробуйте снова.")
         return
@@ -479,7 +482,7 @@ async def check_payment(callback: CallbackQuery, state: FSMContext):
         try:
             order_day_start = datetime.today().date()
             order_day_end = datetime.today().date() + timedelta(days=int(data.get("deadline")))
-
+            print(f"Данные перед добавлением в БД: {await state.get_data()}")
             added_to_db = await add_order_info(
                 order_id=order_id,
                 lawyer_id=data.get("lawyer_id"),
