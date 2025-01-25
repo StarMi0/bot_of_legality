@@ -405,6 +405,7 @@ async def confirm_response(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.startswith("choose_"))
 async def choose_lawyer(callback: CallbackQuery, state: FSMContext):
     _, order_id, lawyer_id, price, deadline = callback.data.split("_")
+    print(order_id, lawyer_id, price, deadline)
     await state.update_data(
         order_id=order_id,
         lawyer_id=lawyer_id,
