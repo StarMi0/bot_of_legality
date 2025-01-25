@@ -674,7 +674,7 @@ async def on_message_in_dialog(message: Message, state: FSMContext):
 
         # Проверяем, является ли отправитель текущим пользователем
         if true_user_id == partner_id:
-            user_id, partner_id = partner_id, user_id
+            partner_id = user_id
 
         text = message.text
         file_id = None
