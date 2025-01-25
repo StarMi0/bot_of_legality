@@ -39,7 +39,8 @@ class EducationDocument(Base):
 
 class Order(Base):
     __tablename__ = 'orders'
-    order_id = Column(String(255), primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    order_id = Column(String(255), ForeignKey('orders_info.order_id'))
     user_id = Column(String(255), ForeignKey('users.user_id'))
     order_text = Column(TEXT)
     order_status = Column(String(255))
@@ -52,6 +53,7 @@ class Order(Base):
 class OrderInfo(Base):
     __tablename__ = 'orders_info'
     order_id = Column(String(255), ForeignKey('orders.order_id'), primary_key=True)
+    user_id = Column(String(255), ForeignKey('users.user_id'))
     lawyer_id = Column(String(255), ForeignKey('users.user_id'))
     order_cost = Column(String(255))
     order_day_start = Column(DATE)
@@ -59,7 +61,6 @@ class OrderInfo(Base):
     develop_time = Column(String(255))
     message_id = Column(String(255))
 
-    order = relationship("Order", back_populates="orders_info")
     lawyer = relationship("User", foreign_keys=[lawyer_id], back_populates="orders_as_lawyer")
     documents = relationship("OrderDocuments", back_populates="order_info")
 
