@@ -317,8 +317,9 @@ async def lawyer_accept_order(callback: CallbackQuery, state: FSMContext):
     order_id = callback.data.split("_")[1]
     await state.update_data(order_id=order_id, lawyer_id=callback.from_user.id)
 
-    await callback.message.answer(
-        "Укажите стоимость ваших услуг. Учтите, что будет вычтена комиссия сервиса.",
+    await callback.message.bot.send_message(
+        chat_id=callback.from_user.id,
+        text="Укажите стоимость ваших услуг. Учтите, что будет вычтена комиссия сервиса."
     )
     await state.set_state(LawyerResponse.ENTER_PRICE)
 
@@ -328,8 +329,9 @@ async def lawyer_re_accept_order(callback: CallbackQuery, state: FSMContext):
     order_id = callback.data.split("_")[1]
     await state.update_data(order_id=order_id, lawyer_id=callback.from_user.id)
 
-    await callback.message.answer(
-        "Укажите стоимость ваших услуг. Учтите, что будет вычтена комиссия сервиса.",
+    await callback.message.bot.send_message(
+        chat_id=callback.from_user.id,
+        text="Укажите стоимость ваших услуг. Учтите, что будет вычтена комиссия сервиса."
     )
     await state.set_state(LawyerResponse.ENTER_PRICE)
 
