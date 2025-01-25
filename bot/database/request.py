@@ -221,7 +221,7 @@ async def add_order_info(order_id: str, lawyer_id: Optional[str] = None,
                          message_id: Optional[str] = None,
                          order_status: str = "pending") -> bool:
     engine = await get_connection()
-
+    print(order_id, lawyer_id, order_cost, order_day_start, order_day_end, develop_time, message_id)
     try:
         async with AsyncSession(engine) as session:
             async with session.begin():
