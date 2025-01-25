@@ -46,8 +46,9 @@ class Order(Base):
     order_status = Column(String(255))
     topic = Column(String(255))
 
+    # Явно указываем внешний ключ для relationship
     user = relationship("User", foreign_keys=[user_id], back_populates="orders_as_user")
-    orders_info = relationship("OrderInfo", uselist=False, back_populates="order")
+    orders_info = relationship("OrderInfo", uselist=False, back_populates="order", foreign_keys=[order_id])
 
 
 class OrderInfo(Base):
@@ -61,8 +62,11 @@ class OrderInfo(Base):
     develop_time = Column(String(255))
     message_id = Column(String(255))
 
+    # Явно указываем внешний ключ для relationship
     lawyer = relationship("User", foreign_keys=[lawyer_id], back_populates="orders_as_lawyer")
     documents = relationship("OrderDocuments", back_populates="order_info")
+    order = relationship("Order", back_populates="orders_info", foreign_keys=[order_id])
+
 
 
 class OrderDocuments(Base):
