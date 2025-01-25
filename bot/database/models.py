@@ -16,7 +16,6 @@ class User(Base):
 
     orders_as_user = relationship("Order", foreign_keys="[Order.user_id]", back_populates="user")
     orders_as_lawyer = relationship("OrderInfo", foreign_keys="[OrderInfo.lawyer_id]", back_populates="lawyer")
-    user_info = relationship("UserInfo", uselist=False, back_populates="user")
     lawyer_info = relationship("LawyerInfo", uselist=False, back_populates="user")
     education_documents = relationship("EducationDocument", back_populates="user")
 
