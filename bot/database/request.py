@@ -215,7 +215,7 @@ async def add_order(order_id: str, user_id: str, order_text: str | None, order_s
 
 async def add_order_info(order_id: str, lawyer_id: str, order_cost: Optional[str],
                          order_day_start: Optional[datetime.date], order_day_end: Optional[datetime.date],
-                         develop_time: str, message_id: str) -> bool:
+                         develop_time: str, message_id: str, order_status: str) -> bool:
     engine = await get_connection()
 
     try:
@@ -231,6 +231,10 @@ async def add_order_info(order_id: str, lawyer_id: str, order_cost: Optional[str
                     message_id=message_id,
                 )
                 session.add(new_order_info)
+
+                new_order_status = Order(
+                    order_status=order_status,
+                )
 
                 # Принудительная запись заказа перед добавлением документов
                 await session.flush()
