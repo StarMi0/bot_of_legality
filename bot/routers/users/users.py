@@ -482,7 +482,7 @@ async def check_payment(callback: CallbackQuery, state: FSMContext):
         try:
             order_day_start = datetime.today().date()
             order_day_end = datetime.today().date() + timedelta(days=int(data.get("deadline")))
-            print(f"Данные перед добавлением в БД: {await state.get_data()}")
+            print(f"Данные перед добавлением в БД: {data}")
             added_to_db = await add_order_info(
                 order_id=order_id,
                 lawyer_id=data.get("lawyer_id"),
