@@ -490,8 +490,9 @@ async def get_active_order_and_partner(user_id):
     try:
         async with AsyncSession(engine) as session:
             async with session.begin():
+                # Исправление: передача колонок через запятую, а не список
                 result = await session.execute(
-                    select([OrderInfo.order_id, OrderInfo.lawyer_id])
+                    select(OrderInfo.order_id, OrderInfo.lawyer_id)
                     .where((OrderInfo.user_id == user_id) | (OrderInfo.lawyer_id == user_id))
                     .filter(OrderInfo.order_id.is_not(None))
                 )
@@ -506,6 +507,7 @@ async def get_active_order_and_partner(user_id):
             return (), ()
     except Exception as e:
         logger.error(f"Ошибка получения заказа и собеседника: {e}")
+        return (), ()
     finally:
         await engine.dispose()
 
