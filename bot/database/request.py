@@ -235,6 +235,7 @@ async def add_order_info(order_id: str, lawyer_id: str, order_cost: Optional[str
                 new_order_status = Order(
                     order_status=order_status,
                 )
+                session.add(new_order_status)
 
                 # Принудительная запись заказа перед добавлением документов
                 await session.flush()
