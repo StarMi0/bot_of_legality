@@ -4,7 +4,8 @@ from datetime import datetime, timedelta
 from aiogram import Router, Bot, F
 from aiogram.filters import BaseFilter, Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton, \
+    InputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from database.request import add_order, get_active_order, get_active_order_lawyer_id, \
     get_users, get_admins, get_active_order_and_partner, \
@@ -409,21 +410,24 @@ async def choose_lawyer(callback: CallbackQuery, state: FSMContext):
         price=price,
         deadline=deadline
     )
+
     # Проверяем статус заказа и обновляем информацию о юристе
     order_info = await get_order_info_by_order_id(order_id)
     if not order_info or order_info[1] == "in_progress":  # Если заказ уже взят юристом
         await callback.message.answer("Этот заказ уже был передан другому юристу.")
         return
-        # Получаем user_id клиента из информации о заказе
+
+    # Получаем user_id клиента из информации о заказе
     user_id = order_info[0]
 
     # Отправка PDF-файла с договором оферты
     try:
         offer_contract_path = "offer_contract.pdf"  # Замените на путь к вашему PDF-файлу
+        offer_contract = InputFile(offer_contract_path)  # Используем InputFile для передачи документа
 
         await callback.bot.send_document(
             chat_id=user_id,
-            document=open(offer_contract_path, "rb"),
+            document=offer_contract,
             caption="Пожалуйста, ознакомьтесь с договором оферты перед оплатой.",
         )
 
