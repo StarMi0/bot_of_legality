@@ -254,7 +254,7 @@ async def get_order_info_by_order_id(order_id: str) -> tuple | None:
         async with AsyncSession(engine) as session:
             async with session.begin():
                 result = await session.execute(
-                    select(Order.user_id, Order.lawyer_id, Order.order_status).filter_by(order_id=order_id)
+                    select(Order.user_id, Order.order_status).filter_by(order_id=order_id)
                 )
                 info = result.one_or_none()
         return info
