@@ -478,6 +478,7 @@ async def check_payment(callback: CallbackQuery, state: FSMContext):
             order_day_end = datetime.today().date() + timedelta(days=int(data.get("deadline")))
             added_to_db = await add_order_info(
                 order_id=order_id,
+                user_id=callback.message.from_user.id,
                 lawyer_id=data.get("lawyer_id"),
                 order_cost=data.get("price"),
                 order_day_start=order_day_start,
@@ -536,16 +537,50 @@ async def handle_dialog_button(message: Message, state: FSMContext):
         await message.bot.send_message(partner_id, "Ваш собеседник начал диалог.")
 
 
+@router.message(F.text == "Диалог")
+async def handle_dialog_button(message: Message, state: FSMContext):
+    user_id = message.from_user.id
+
+    # Проверка наличия активного заказа и собеседника
+    order_data = await get_active_order_and_partner(user_id)
+    if order_data == ():
+        await message.answer("Для начала диалога нужен активный заказ.")
+        return
+
+    order_id, partner_id = order_data
+
+    current_state = await state.get_state()
+
+    if current_state == DialogState.active.state:
+        # Завершение диалога
+        await state.clear()
+        await message.answer("Диалог завершен.")
+        # Уведомляем второго пользователя
+        await message.bot.send_message(partner_id, "Ваш собеседник завершил диалог.")
+    else:
+        # Начало диалога
+        await state.set_state(DialogState.active)
+        await state.update_data(user_id=user_id, partner_id=partner_id, order_id=order_id)
+        await message.answer("Диалог начат. Вы можете отправлять сообщения.")
+        # Уведомляем второго пользователя
+        await message.bot.send_message(partner_id, "Ваш собеседник начал диалог.")
+
+
 @router.message()
 async def on_message_in_dialog(message: Message, state: FSMContext):
-    user_id = message.from_user.id
+    true_user_id = message.from_user.id
 
     # Проверка участия в активном диалоге
     current_state = await state.get_state()
     if current_state == DialogState.active.state:
         data = await state.get_data()
+        user_id = data.get("user_id")
         partner_id = data.get("partner_id")
         order_id = data.get("order_id")
+
+        # Проверяем, является ли отправитель текущим пользователем
+        if true_user_id == partner_id:
+            user_id, partner_id = partner_id, user_id
 
         text = message.text
         file_id = None

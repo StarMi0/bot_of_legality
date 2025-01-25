@@ -213,7 +213,7 @@ async def add_order(order_id: str, user_id: str, order_text: str | None, order_s
         await engine.dispose()
 
 
-async def add_order_info(order_id: str, lawyer_id: Optional[str] = None,
+async def add_order_info(order_id: str, user_id: str, lawyer_id: Optional[str] = None,
                          order_cost: Optional[str] = None,
                          order_day_start: Optional[datetime.date] = None,
                          order_day_end: Optional[datetime.date] = None,
@@ -234,6 +234,7 @@ async def add_order_info(order_id: str, lawyer_id: Optional[str] = None,
                 if existing_order_info:
                     # Обновляем данные в существующей записи
                     existing_order_info.lawyer_id = lawyer_id
+                    existing_order_info.user_id = user_id
                     existing_order_info.order_cost = order_cost
                     existing_order_info.order_day_start = order_day_start
                     existing_order_info.order_day_end = order_day_end
@@ -243,6 +244,7 @@ async def add_order_info(order_id: str, lawyer_id: Optional[str] = None,
                     # Создаем новую запись, если ее нет
                     new_order_info = OrderInfo(
                         order_id=order_id,
+                        user_id=user_id,
                         lawyer_id=lawyer_id,
                         order_cost=order_cost,
                         order_day_start=order_day_start,
