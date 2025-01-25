@@ -396,6 +396,7 @@ async def confirm_response(callback: CallbackQuery, state: FSMContext):
                                       callback_data=f"choose_{data.get('order_id')}_{callback.from_user.id}_{data['price']}_{data['deadline']}")]
             ])
         )
+        await state.set_state(PaymentResponse.AWAITING_PAYMENT)
         await callback.message.answer("Ваш отклик отправлен пользователю.")
         await state.clear()
     except Exception as e:
@@ -457,8 +458,10 @@ async def choose_lawyer(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data.startswith("pay_"))
 async def check_payment(callback: CallbackQuery, state: FSMContext):
-    order_id = callback.data.split("_")[1]
+    print(f"Состояние в начале check_payment: {await state.get_state()}")
+    print(f"Данные в check_payment: {await state.get_data()}")
 
+    order_id = callback.data.split("_")[1]
     # Проверка состояния
     data = await state.get_data()
     if data.get("order_id") != order_id:
