@@ -423,13 +423,15 @@ async def choose_lawyer(callback: CallbackQuery, state: FSMContext):
     # Отправка PDF-файла с договором оферты
     try:
         offer_contract_path = "offer_contract.pdf"  # Замените на путь к вашему PDF-файлу
-        offer_contract = InputFile(offer_contract_path)  # Используем InputFile для передачи документа
+        # Открываем файл и передаем его как объект в InputFile
+        with open(offer_contract_path, "rb") as file:
+            offer_contract = InputFile(file, filename="offer_contract.pdf")  # Оборачиваем файл в InputFile
 
-        await callback.bot.send_document(
-            chat_id=user_id,
-            document=offer_contract,
-            caption="Пожалуйста, ознакомьтесь с договором оферты перед оплатой.",
-        )
+            await callback.bot.send_document(
+                chat_id=user_id,
+                document=offer_contract,
+                caption="Пожалуйста, ознакомьтесь с договором оферты перед оплатой.",
+            )
 
         # Переход к следующему этапу
         await state.update_data(order_id=order_id, lawyer_id=lawyer_id)
