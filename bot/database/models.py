@@ -11,7 +11,6 @@ class User(Base):
     user_fio = Column(String(255))
     user_date_birth = Column(String(255))
     registration_date = Column(DATE)
-    # Поле role с перечислением допустимых значений
     role = Column(Enum('user', 'lawyer', 'admin', name='user_roles'), default='user')
 
     orders_as_user = relationship("Order", foreign_keys="[Order.user_id]", back_populates="user")
@@ -46,9 +45,13 @@ class Order(Base):
     order_status = Column(String(255))
     topic = Column(String(255))
 
-    # Явно указываем внешний ключ для relationship
     user = relationship("User", foreign_keys=[user_id], back_populates="orders_as_user")
-    orders_info = relationship("OrderInfo", uselist=False, back_populates="order", foreign_keys=[order_id])
+    orders_info = relationship(
+        "OrderInfo",
+        uselist=False,
+        back_populates="order",
+        primaryjoin="Order.order_id == OrderInfo.order_id",
+    )
 
 
 class OrderInfo(Base):
@@ -62,11 +65,13 @@ class OrderInfo(Base):
     develop_time = Column(String(255))
     message_id = Column(String(255))
 
-    # Явно указываем внешний ключ для relationship
     lawyer = relationship("User", foreign_keys=[lawyer_id], back_populates="orders_as_lawyer")
     documents = relationship("OrderDocuments", back_populates="order_info")
-    order = relationship("Order", back_populates="orders_info", foreign_keys=[order_id])
-
+    order = relationship(
+        "Order",
+        back_populates="orders_info",
+        primaryjoin="Order.order_id == OrderInfo.order_id",
+    )
 
 
 class OrderDocuments(Base):
