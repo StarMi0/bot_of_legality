@@ -4,8 +4,7 @@ from dotenv import find_dotenv, load_dotenv
 load_dotenv(find_dotenv())
 # bot tokens and id's
 BOT_TOKEN = os.getenv('BOT_TOKEN', '6937575207:AAEyjyd2hEuJCrQPWSTDj7RcN_Me2Wy6cKk')
-group_ID = os.getenv('CONSULT_GROUP_ID', '4255132409')
-admin_ID = os.getenv('ADMIN_CHAT_ID', '4255132409')
+group_ID = os.getenv('CONSULT_GROUP_ID', '-1002050871811')
 invite_link = os.getenv("LAWYER_GROUP_LINK")
 
 # sql data

@@ -276,7 +276,7 @@ async def process_next(call: CallbackQuery, state: FSMContext):
                 except Exception as e:
                     print(f"Ошибка при отправке файла: {e}")
         except Exception as e:
-            print(f"Ошибка при отправке сообщения в группу юристов: {e}")
+            print(f"Ошибка при отправке сообщения в группу юристов: {e, lawyers_group}")
         await state.clear()
 
 
