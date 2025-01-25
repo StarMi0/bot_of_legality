@@ -8,7 +8,7 @@ from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove, InlineKey
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from database.request import add_order, get_active_order, get_active_order_lawyer_id, \
     get_users, get_admins, \
-    get_order_info_by_order_id, update_order_info, \
+    get_order_info_by_order_id, add_order_info, \
     save_message
 from keyboard.kb import user_keyboard
 from loguru import logger
@@ -449,7 +449,7 @@ async def check_payment(callback: CallbackQuery, state: FSMContext):
             order_day_start = datetime.today().date()
             order_day_end = datetime.today().date() + timedelta(days=int(data.get("deadline")))
 
-            added_to_db = await update_order_info(
+            added_to_db = await add_order_info(
                 order_id=order_id,
                 order_cost=data.get("price"),
                 order_day_start=order_day_start,
