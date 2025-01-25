@@ -40,7 +40,7 @@ class EducationDocument(Base):
 class Order(Base):
     __tablename__ = 'orders'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    order_id = Column(String(255), ForeignKey('orders_info.order_id'))
+    order_id = Column(String(255), unique=True, nullable=False)
     user_id = Column(String(255), ForeignKey('users.user_id'))
     order_text = Column(TEXT)
     order_status = Column(String(255))
