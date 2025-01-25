@@ -373,62 +373,6 @@ async def update_table(table, field_values: dict, where_clause: dict):
     return False
 
 
-async def add_offer(offer_id: str, order_id: str, lawyer_id: str, order_cost: int, develop_time: int):
-    engine = await get_connection()
-
-    try:
-        async with AsyncSession(engine) as session:
-            async with session.begin():
-                new_offer = Offer(
-                    offer_id=offer_id,
-                    order_id=order_id,
-                    lawyer_id=str(lawyer_id),
-                    order_cost=order_cost,
-                    develop_time=develop_time
-                )
-                session.add(new_offer)
-
-            await session.commit()
-    except Exception as e:
-        logger.error(f"Ошибка добавления предложения: {e}")
-
-
-async def get_offer_by_offer_id(offer_id: str) -> list | None:
-    engine = await get_connection()
-
-    try:
-        async with AsyncSession(engine) as session:
-            async with session.begin():
-                result = await session.execute(
-                    select(Offer.order_id, Offer.lawyer_id, Offer.order_cost, Offer.develop_time).filter_by(
-                        offer_id=offer_id)
-                )
-                offers = result.fetchone()
-
-        return offers if offers else None
-    except Exception as e:
-        logger.error(f"Ошибка получения предложений: {e}")
-        return None
-
-
-async def get_offers_by_lawyer_order_id(lawyer_id: str, order_id: str) -> list | None:
-    engine = await get_connection()
-
-    try:
-        async with AsyncSession(engine) as session:
-            async with session.begin():
-                result = await session.execute(
-                    select(Offer.lawyer_id, Offer.order_cost, Offer.develop_time).filter(Offer.order_id == order_id,
-                                                                                         Offer.lawyer_id == lawyer_id)
-                )
-                offers = result.fetchone()
-
-        return offers if offers else None
-    except Exception as e:
-        logger.error(f"Ошибка получения предложений: {e}")
-        return None
-
-
 async def add_document(user_id, document_data):
     engine = await get_connection()
 

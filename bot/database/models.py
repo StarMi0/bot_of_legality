@@ -47,7 +47,6 @@ class Order(Base):
 
     user = relationship("User", foreign_keys=[user_id], back_populates="orders_as_user")
     orders_info = relationship("OrderInfo", uselist=False, back_populates="order")
-    offers = relationship("Offer", back_populates="order")
 
 
 class OrderInfo(Base):
