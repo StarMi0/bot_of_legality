@@ -225,21 +225,49 @@ async def add_order_info(order_id: str, lawyer_id: Optional[str] = None,
     try:
         async with AsyncSession(engine) as session:
             async with session.begin():
-                new_order_info = OrderInfo(
-                    order_id=order_id,
-                    lawyer_id=lawyer_id,
-                    order_cost=order_cost,
-                    order_day_start=order_day_start,
-                    order_day_end=order_day_end,
-                    develop_time=develop_time,
-                    message_id=message_id,
+                # Проверяем существование записи в OrderInfo
+                existing_order_info = await session.execute(
+                    select(OrderInfo).where(OrderInfo.order_id == order_id)
                 )
-                session.add(new_order_info)
+                existing_order_info = existing_order_info.scalars().first()
 
-                new_order_status = Order(
-                    order_status=order_status,
+                if existing_order_info:
+                    # Обновляем данные в существующей записи
+                    existing_order_info.lawyer_id = lawyer_id
+                    existing_order_info.order_cost = order_cost
+                    existing_order_info.order_day_start = order_day_start
+                    existing_order_info.order_day_end = order_day_end
+                    existing_order_info.develop_time = develop_time
+                    existing_order_info.message_id = message_id
+                else:
+                    # Создаем новую запись, если ее нет
+                    new_order_info = OrderInfo(
+                        order_id=order_id,
+                        lawyer_id=lawyer_id,
+                        order_cost=order_cost,
+                        order_day_start=order_day_start,
+                        order_day_end=order_day_end,
+                        develop_time=develop_time,
+                        message_id=message_id,
+                    )
+                    session.add(new_order_info)
+
+                # Проверяем существование записи в Order
+                existing_order_status = await session.execute(
+                    select(Order).where(Order.order_id == order_id)
                 )
-                session.add(new_order_status)
+                existing_order_status = existing_order_status.scalars().first()
+
+                if existing_order_status:
+                    # Обновляем статус заказа
+                    existing_order_status.order_status = order_status
+                else:
+                    # Создаем новую запись статуса, если ее нет
+                    new_order_status = Order(
+                        order_id=order_id,
+                        order_status=order_status,
+                    )
+                    session.add(new_order_status)
 
             await session.commit()
             return True
