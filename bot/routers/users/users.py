@@ -17,6 +17,7 @@ from loguru import logger
 from routers.states import SupportStates, Consult, LawyerResponse, PaymentResponse, DialogState, EndOrder
 from utils.config import group_ID as lawyers_group
 
+
 router = Router(name=__name__)
 
 
@@ -56,13 +57,14 @@ async def get_start(message: Message, bot: Bot):
     # Отправляем сообщение с инструкцией и клавиатурой
     await message.answer(instruction, reply_markup=user_keyboard)
 
+
 """
 Ветка Поддержка
 """
 
 
 # Обработчик кнопки "Поддержка"
-@router.message(F.text=="Поддержка", UserFilter())
+@router.message(F.text=="Поддержка")
 async def start_support(message: Message, state: FSMContext):
     """
     Начало работы с поддержкой.
