@@ -1,3 +1,4 @@
+import os
 import uuid
 from datetime import datetime, timedelta
 
@@ -416,13 +417,12 @@ async def choose_lawyer(callback: CallbackQuery, state: FSMContext):
     if not order_info or order_info[1] == "in_progress":  # Если заказ уже взят юристом
         await callback.message.answer("Этот заказ уже был передан другому юристу.")
         return
-
+    offer_contract_path = "offer_contract.pdf"
     # Получаем user_id клиента из информации о заказе
     user_id = order_info[0]
 
     # Отправка PDF-файла с договором оферты
     try:
-        offer_contract_path = "offer_contract.pdf"  # Замените на путь к вашему PDF-файлу
         # Открываем файл и передаем его как объект в InputFile
         with open(offer_contract_path, "rb") as file:
             offer_contract = InputFile(file, filename="offer_contract.pdf")  # Оборачиваем файл в InputFile
@@ -445,7 +445,7 @@ async def choose_lawyer(callback: CallbackQuery, state: FSMContext):
         await state.set_state(PaymentResponse.AWAITING_PAYMENT)
 
     except Exception as e:
-        logger.error(f"Ошибка при отправке договора оферты: {e}")
+        logger.error(f"Ошибка при отправке договора оферты: {e, os.path.exists(offer_contract_path)}")
         await callback.message.answer("Произошла ошибка при отправке договора. Попробуйте снова.")
 
 
