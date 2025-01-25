@@ -152,20 +152,6 @@ async def get_lawyers() -> List[str]:
         return []
 
 
-async def get_user_role(user_id: str) -> str | None:
-    engine = await get_connection()
-
-    try:
-        async with AsyncSession(engine) as session:
-            async with session.begin():
-                result = await session.execute(select(User.role).filter_by(user_id=str(user_id)))
-                role = result.scalar_one_or_none()
-                return role if role else None
-    except Exception as e:
-        logger.error(f"Ошибка получения роли пользователя: {e}")
-        return None
-
-
 async def get_user_info(user_id: str) -> str | None:
     engine = await get_connection()
 
@@ -180,7 +166,7 @@ async def get_user_info(user_id: str) -> str | None:
         return None
 
 
-async def add_order(order_id: str, user_id: str, lawyer_id: str | None, order_status: str, group_id: str, documents_id: list[str]) -> int:
+async def add_order(order_id: str, user_id: str, order_text: str | None, order_status: str, topic: str, documents_id: list[str]) -> int:
     engine = await get_connection()
 
     try:
@@ -195,11 +181,14 @@ async def add_order(order_id: str, user_id: str, lawyer_id: str | None, order_st
                 new_order = Order(
                     order_id=order_id,
                     user_id=str(user_id),
-                    lawyer_id=lawyer_id,
+                    order_text=order_text,
                     order_status=order_status,
-                    group_id=group_id
+                    topic=topic
                 )
                 session.add(new_order)
+
+                # Принудительная запись заказа перед добавлением документов
+                await session.flush()
 
                 # Добавление документов
                 if documents_id:
@@ -219,10 +208,9 @@ async def add_order(order_id: str, user_id: str, lawyer_id: str | None, order_st
         await engine.dispose()
 
 
-async def add_order_info(order_id: str, order_text: str, order_cost: Optional[str],
+async def add_order_info(order_id: str, lawyer_id: str, order_cost: Optional[str],
                          order_day_start: Optional[datetime.date], order_day_end: Optional[datetime.date],
-                         message_id: str, order_status: str,
-                         group_id: str) -> bool:
+                         develop_time: str, message_id: str) -> bool:
     engine = await get_connection()
 
     try:
@@ -230,48 +218,27 @@ async def add_order_info(order_id: str, order_text: str, order_cost: Optional[st
             async with session.begin():
                 new_order_info = OrderInfo(
                     order_id=order_id,
-                    order_text=order_text,
+                    lawyer_id=lawyer_id,
                     order_cost=order_cost,
                     order_day_start=order_day_start,
                     order_day_end=order_day_end,
+                    develop_time=develop_time,
                     message_id=message_id,
-                    group_id=group_id,
-                    order_status=order_status
                 )
                 session.add(new_order_info)
+
+                # Принудительная запись заказа перед добавлением документов
+                await session.flush()
+
+                new_status = Order(
+                    order_status="in_progress"
+                )
+                session.add(new_status)
 
             await session.commit()
             return True
     except Exception as e:
         logger.error(f"Ошибка внесения дополнительной информации: {e}")
-        return False
-
-
-async def update_order_info(order_id: str,
-                            order_cost: Optional[str],
-                            order_day_start: Optional[datetime.date],
-                            order_day_end: Optional[datetime.date],
-                            order_status: Optional[str]) -> bool:
-    engine = await get_connection()
-
-    try:
-        async with AsyncSession(engine) as session:
-            async with session.begin():
-                await session.execute(
-                    update(OrderInfo)
-                    .where(OrderInfo.order_id == order_id)
-                    .values(
-                        order_cost=order_cost,
-                        order_day_start=order_day_start,
-                        order_day_end=order_day_end,
-                        order_status=order_status  # Обновляем статус заказа
-                    )
-                )
-
-            await session.commit()
-            return True
-    except Exception as e:
-        logger.error(f"Ошибка обновления информации по заказу: {e}")
         return False
 
 
@@ -340,7 +307,7 @@ async def get_active_order(user_id: str) -> str | None:
         async with AsyncSession(engine) as session:
             async with session.begin():
                 result = await session.execute(
-                    select(Order.order_id).where(Order.user_id == user_id, Order.order_status.in_(['active', 'in_search', 'in_progress']))
+                    select(Order.order_id).where(Order.user_id == user_id, Order.order_status.in_(['active', 'in_progress']))
                 )
                 order_id = result.scalar_one_or_none()
 

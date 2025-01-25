@@ -9,7 +9,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from database.request import add_order, get_active_order, get_active_order_lawyer_id, \
     get_users, get_admins, \
     get_order_info_by_order_id, update_order_info, \
-    get_active_order_and_partner, save_message
+    save_message
 from keyboard.kb import user_keyboard
 from loguru import logger
 from routers.states import SupportStates, Consult, LawyerResponse, PaymentResponse, DialogState
@@ -219,11 +219,15 @@ async def process_next(call: CallbackQuery, state: FSMContext):
         return
 
     # Установка статуса заказа
-    order_status = "active"  # Например, "в ожидании"
-    group_id = "admins" if topic == "legal_audit" else "lawyers_group"
+    order_status = "active"
 
     # Создание заказа в базе данных
-    await add_order(order_id, user_id, None, order_status, group_id, files)
+    await add_order(order_id,
+                    user_id,
+                    problem_description,
+                    order_status,
+                    topic,
+                    files)
 
     if topic == "legal_audit":
         # Отправка администраторам
