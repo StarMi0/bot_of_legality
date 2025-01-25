@@ -472,9 +472,12 @@ async def check_payment(callback: CallbackQuery, state: FSMContext):
 
             added_to_db = await add_order_info(
                 order_id=order_id,
+                lawyer_id=data.get("lawyer_id"),
                 order_cost=data.get("price"),
                 order_day_start=order_day_start,
                 order_day_end=order_day_end,
+                develop_time=data.get("deadline"),
+                message_id=None,
                 order_status="in_progress"
             )
 
