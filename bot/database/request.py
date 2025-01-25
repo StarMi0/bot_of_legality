@@ -278,6 +278,34 @@ async def add_order_info(order_id: str, user_id: str, lawyer_id: Optional[str] =
         return False
 
 
+async def end_order(order_id: str) -> tuple | None:
+    engine = await get_connection()
+    try:
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                # Проверяем существование записи в Order
+                existing_order_status = await session.execute(
+                    select(Order).where(Order.order_id == order_id)
+                )
+                existing_order_status = existing_order_status.scalars().first()
+
+                if existing_order_status:
+                    # Обновляем статус заказа
+                    existing_order_status.order_status = "close"
+                else:
+                    # Создаем новую запись статуса, если ее нет
+                    new_order_status = Order(
+                        order_id=order_id,
+                        order_status="close",
+                    )
+                    session.add(new_order_status)
+
+            await session.commit()
+            return True
+    except Exception as e:
+        logger.error(f"Ошибка внесения дополнительной информации: {e}")
+        return False
+
 async def get_order_info_by_order_id(order_id: str) -> tuple | None:
     engine = await get_connection()
 
