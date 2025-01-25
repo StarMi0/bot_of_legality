@@ -285,7 +285,7 @@ async def process_next(call: CallbackQuery, state: FSMContext):
         await state.clear()
 
 
-@router.message(F.text=="Мои заказы", UserFilter())
+@router.message(F.text=="Мои заказы")
 async def send_active_orders(call: CallbackQuery, bot: Bot, state: FSMContext):
     """
     Проверяет на наличие заказов, если таковых нет, создает
