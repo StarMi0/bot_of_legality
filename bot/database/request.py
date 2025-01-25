@@ -213,9 +213,13 @@ async def add_order(order_id: str, user_id: str, order_text: str | None, order_s
         await engine.dispose()
 
 
-async def add_order_info(order_id: str, lawyer_id: str, order_cost: Optional[str],
-                         order_day_start: Optional[datetime.date], order_day_end: Optional[datetime.date],
-                         develop_time: str, message_id: str, order_status: str) -> bool:
+async def add_order_info(order_id: str, lawyer_id: Optional[str] = None,
+                         order_cost: Optional[str] = None,
+                         order_day_start: Optional[datetime.date] = None,
+                         order_day_end: Optional[datetime.date] = None,
+                         develop_time: Optional[str] = None,
+                         message_id: Optional[str] = None,
+                         order_status: str = "pending") -> bool:
     engine = await get_connection()
 
     try:
