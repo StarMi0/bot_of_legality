@@ -462,9 +462,9 @@ async def get_active_order_and_partner(user_id):
         async with AsyncSession(engine) as session:
             async with session.begin():
                 result = await session.execute(
-                    select([DialogLog.order_id, DialogLog.lawyer_id])
-                    .where((DialogLog.user_id == user_id) | (DialogLog.lawyer_id == user_id))
-                    .filter(DialogLog.order_id.is_not(None))
+                    select([OrderInfo.order_id, OrderInfo.lawyer_id])
+                    .where((OrderInfo.user_id == user_id) | (OrderInfo.lawyer_id == user_id))
+                    .filter(OrderInfo.order_id.is_not(None))
                 )
                 record = result.first()
 
@@ -474,7 +474,7 @@ async def get_active_order_and_partner(user_id):
             partner_id = lawyer_id if user_id != lawyer_id else record.user_id
             return order_id, partner_id
         else:
-            return None, None
+            return (), ()
     except Exception as e:
         logger.error(f"Ошибка получения заказа и собеседника: {e}")
     finally:

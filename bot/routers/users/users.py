@@ -312,8 +312,19 @@ async def send_active_orders(call: CallbackQuery, bot: Bot):
 ВЕТКА ОТКЛИКА НА ЗАКАЗ
 """
 
-@router.callback_query(F.data.startswith("accept_") | F.data == "edit_response")
+@router.callback_query(F.data.startswith("accept_"))
 async def lawyer_accept_order(callback: CallbackQuery, state: FSMContext):
+    order_id = callback.data.split("_")[1]
+    await state.update_data(order_id=order_id, lawyer_id=callback.from_user.id)
+
+    await callback.message.answer(
+        "Укажите стоимость ваших услуг. Учтите, что комиссия сервиса составит 12%.",
+    )
+    await state.set_state(LawyerResponse.ENTER_PRICE)
+
+
+@router.callback_query(F.data == "edit_response")
+async def lawyer_re_accept_order(callback: CallbackQuery, state: FSMContext):
     order_id = callback.data.split("_")[1]
     await state.update_data(order_id=order_id, lawyer_id=callback.from_user.id)
 
@@ -485,10 +496,12 @@ async def handle_dialog_button(message: Message, state: FSMContext):
     user_id = message.from_user.id
 
     # Проверка наличия активного заказа и собеседника
-    order_id, partner_id = await get_active_order_and_partner(user_id)
-    if not order_id or not partner_id:
+    order_data = await get_active_order_and_partner(user_id)
+    if order_data == ():
         await message.answer("Для начала диалога нужен активный заказ.")
         return
+
+    order_id, partner_id = order_data
 
     current_state = await state.get_state()
 
