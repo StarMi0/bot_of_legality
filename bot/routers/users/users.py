@@ -7,7 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from database.request import add_order, get_active_order, get_active_order_lawyer_id, \
-    get_users, get_admins, \
+    get_users, get_admins, get_active_order_and_partner, \
     get_order_info_by_order_id, add_order_info, \
     save_message
 from keyboard.kb import user_keyboard
@@ -269,7 +269,10 @@ async def process_next(call: CallbackQuery, state: FSMContext):
             # Пересылка файлов
             for file_id in files:
                 try:
-                    if file_id.startswith("photo_"):  # Или используйте другой метод для определения типа
+                    file_info = await call.message.bot.get_file(file_id)
+                    file_extension = file_info.file_path.split('.')[-1].lower()
+                    # Check if it's a photo based on the file extension or MIME type
+                    if file_extension in ['jpg', 'jpeg', 'png', 'gif']:
                         await call.bot.send_photo(lawyers_group, file_id)
                     else:
                         await call.bot.send_document(lawyers_group, file_id)

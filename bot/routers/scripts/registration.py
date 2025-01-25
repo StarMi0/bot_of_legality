@@ -183,7 +183,7 @@ async def handle_document_upload(message: types.Message, state: FSMContext):
     await message.reply("Документ успешно загружен. Загрузите следующий или нажмите 'Далее'.", reply_markup=kb.as_markup())
 
 
-@router.callback_query(F.data == "save_documents", AdminFilter())
+@router.callback_query(F.data == "save_documents")
 async def save_documents(call: CallbackQuery, state: FSMContext):
     """
     Сохранение загруженных документов и переход к следующему шагу
