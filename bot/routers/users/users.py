@@ -287,7 +287,7 @@ async def process_next(call: CallbackQuery, state: FSMContext):
         await state.clear()
 
 
-@router.message(F.text=="Мои заказы")
+@router.message(F.text=="Мои заказы", UserFilter())
 async def send_active_orders(call: CallbackQuery, bot: Bot, state: FSMContext):
     """
     Проверяет на наличие заказов, если таковых нет, создает
@@ -306,16 +306,9 @@ async def send_active_orders(call: CallbackQuery, bot: Bot, state: FSMContext):
             # Вывод информации по текущему заказу
             order_info = get_order_info_by_order_id(order_id)
             if user_id == lawyer_id:
-                # Если пользователь — юрист, добавляем кнопку завершения
-                end_kb = InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [InlineKeyboardButton(text="Завершить заказ", callback_data=f"finish_order:{order_id}")]
-                    ]
-                )
                 await bot.send_message(
                     chat_id=user_id,
-                    text=f"У вас имеется действующий заказ:\n{order_info}",
-                    reply_markup=end_kb
+                    text=f"У вас имеется действующий заказ:\n{order_info}"
                 )
                 await state.set_state(EndOrder.SEND_FINAL_FILES)
             else:
@@ -326,84 +319,6 @@ async def send_active_orders(call: CallbackQuery, bot: Bot, state: FSMContext):
                 )
     else:
         await call.answer("У вас нет активных заказов")
-
-
-@router.callback_query(F.data.startswith("finish_order:"))
-async def finish_order(callback: CallbackQuery, bot: Bot, state: FSMContext):
-    """
-    Обрабатывает завершение заказа юристом.
-    """
-    order_id = int(callback.data.split(":")[1])
-    await state.update_data(order_id=order_id)
-    text = (
-        "Вы можете загрузить свои документы по заказу.\n"
-        "После загрузки всех документов нажмите 'Далее'."
-    )
-    kb = InlineKeyboardBuilder()
-    kb.button(text='Далее', callback_data=f'next_message:{order_id}')
-
-    await bot.send_message(chat_id=callback.from_user.id, text=text, reply_markup=kb.as_markup())
-    await state.set_state(EndOrder.SEND_FINAL_FILES)
-
-
-@router.message(EndOrder.SEND_FINAL_FILES)
-async def handle_document_upload(message: Message, state: FSMContext):
-    """
-    Обработка загрузки документа
-    """
-    end_data = await state.get_data()
-    user_id, _ = get_order_info_by_order_id(end_data.get("order_id"))
-
-    # Проверка участия в активном диалоге
-    current_state = await state.get_state()
-    if current_state == EndOrder.active.state:
-
-        text = message.text
-        file_id = None
-        file_type = None
-
-        # Если сообщение содержит файл
-        if message.document:
-            file_id = message.document.file_id
-            file_type = "document"
-        elif message.photo:
-            file_id = message.photo[-1].file_id  # Берем последнюю (самую качественную) фотографию
-            file_type = "photo"
-
-        # Отправляем сообщение собеседнику
-        if text or file_id:
-            await message.bot.send_message(user_id, text or "Отправлен файл")
-            if file_id:
-                if file_type == "document":
-                    await message.bot.send_document(user_id, file_id)
-                elif file_type == "photo":
-                    await message.bot.send_photo(user_id, file_id)
-
-
-@router.callback_query(F.data.startswith("next_message:"))
-async def handle_next_message(callback: CallbackQuery, bot: Bot, state: FSMContext):
-    """
-    Обрабатывает кнопку "Далее" для передачи сообщений.
-    """
-    order_id = int(callback.data.split(":")[1])
-    user_id, _ = get_order_info_by_order_id(order_id)
-    kb = InlineKeyboardBuilder()
-    kb.button(text='Подтвердить', callback_data=f'Approve:{order_id}')
-
-    await callback.message.bot.send_message(chat_id=user_id,
-                                            text="Выполнение заказа завершено",
-                                            reply_markup=kb.as_markup())
-
-
-@router.callback_query(F.data.startswith("Approve:"))
-async def approve_message(callback: CallbackQuery):
-    """
-    Обрабатывает кнопку "Далее" для передачи сообщений.
-    """
-    order_id = int(callback.data.split(":")[1])
-    await end_order(order_id)
-
-    await callback.message.answer(text="Вы подтвердили завершение заказа.")
 
 
 """
@@ -639,7 +554,7 @@ async def handle_dialog_button(message: Message, state: FSMContext):
 
     # Проверка наличия активного заказа и собеседника
     order_data = await get_active_order_and_partner(user_id)
-    if order_data == ():
+    if not order_data:
         await message.answer("Для начала диалога нужен активный заказ.")
         return
 
@@ -692,7 +607,11 @@ async def on_message_in_dialog(message: Message, state: FSMContext):
 
         # Отправляем сообщение собеседнику
         if text or file_id:
-            await message.bot.send_message(partner_id, text or "Отправлен файл")
+            # Отправляем текст
+            if text:
+                await message.bot.send_message(partner_id, text)
+
+            # Отправляем файл
             if file_id:
                 if file_type == "document":
                     await message.bot.send_document(partner_id, file_id)
@@ -700,6 +619,13 @@ async def on_message_in_dialog(message: Message, state: FSMContext):
                     await message.bot.send_photo(partner_id, file_id)
 
             # Сохраняем сообщение в базе данных
-            await save_message(order_id, sender_id=user_id, receiver_id=partner_id, message_text=text, file_id=file_id, file_type=file_type)
+            await save_message(
+                order_id=order_id,
+                sender_id=true_user_id,
+                receiver_id=partner_id,
+                message_text=text,
+                file_id=file_id,
+                file_type=file_type,
+            )
     else:
         await message.answer("Вы не участвуете в диалоге. Для начала нажмите 'Диалог'.")
