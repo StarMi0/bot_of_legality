@@ -223,21 +223,29 @@ async def save_documents(call: CallbackQuery, state: FSMContext):
     kb.button(text="Отказать в регистрации", callback_data="reject_registration")
     kb.adjust(1)
 
-    # Отправляем сообщение администраторам
-    await call.message.reply(admin_text, parse_mode="HTML", reply_markup=kb.as_markup())
+    admins = await get_admins()
 
-    # Обработка и отправка документов и фотографий администраторам
-    for file_id in documents:
-        try:
-            # Сначала пытаемся отправить как документ
-            await call.message.reply_document(file_id)
-        except Exception:
-            # Если не удалось, отправляем как фото
+    # Если нет администраторов, возвращаем callback_data="confirm_registration"
+    if not admins:
+        await call.message.answer(f"Поздравляем! Ваша регистрация подтверждена. Присоединяйтесь к нашей группе: {invite_link}")
+        return
+
+    # Отправляем сообщение администраторам
+    for admin_id in admins:
+        await call.bot.send_message(chat_id=admin_id, text=admin_text, parse_mode="HTML", reply_markup=kb.as_markup())
+
+        # Обработка и отправка документов и фотографий администраторам
+        for file_id in documents:
             try:
-                await call.message.reply_photo(file_id)
-            except Exception as e:
-                # Если ни документ, ни фото, логируем ошибку (опционально)
-                await call.message.reply(f"Не удалось отправить файл с ID: {file_id}. Ошибка: {e}")
+                # Сначала пытаемся отправить как документ
+                await call.bot.send_document(admin_id, file_id)
+            except Exception:
+                # Если не удалось, отправляем как фото
+                try:
+                    await call.bot.send_photo(admin_id, file_id)
+                except Exception as e:
+                    # Если ни документ, ни фото, логируем ошибку (опционально)
+                    await call.bot.send_message(admin_id, f"Не удалось отправить файл с ID: {file_id}. Ошибка: {e}")
 
 @router.callback_query(F.data == "confirm_registration")
 async def confirm_registration(call: CallbackQuery, bot: Bot, state: FSMContext):
