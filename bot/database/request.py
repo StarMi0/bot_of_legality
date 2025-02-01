@@ -618,3 +618,22 @@ async def end_order(order_id: str,
     except Exception as e:
         logger.error(f"Ошибка обновления информации по заказу: {e}")
         return False
+
+
+async def for_chat_id(user_id: str) -> dict:
+    engine = await get_connection()
+    async with AsyncSession(engine) as session:
+        async with session.begin():
+            result = await session.execute(
+                select(OrderInfo.user_id, OrderInfo.lawyer_id)
+                .where((OrderInfo.user_id == user_id) | (OrderInfo.lawyer_id == user_id))
+            )
+            messages = result.fetchall()
+            if not messages:
+                return None
+
+            order_info = messages[0]
+            if order_info.user_id == user_id:
+                return {"from_id": order_info.user_id, "to_id": order_info.lawyer_id}
+            else:
+                return {"from_id": order_info.lawyer_id, "to_id": order_info.user_id}
