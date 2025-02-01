@@ -14,21 +14,20 @@ async def send_active_orders(call: CallbackQuery, bot: Bot, state: FSMContext):
     user_id = call.from_user.id
     order_id = await get_active_order(user_id) or await get_active_order_by_lawyer(user_id)
 
-    if order_id:
+    if await get_active_order_by_lawyer(user_id):
+        # Исполнитель получает информацию по заказу и кнопку завершения заказа
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="Завершить заказ", callback_data=f"complete_order_{order_id}")]]
+        )
+        await bot.send_message(chat_id=user_id, text=f"У вас имеется действующий заказ: {order_id}", reply_markup=keyboard)
+        await state.set_state(EndOrder.SEND_FINAL_TEXT)
+    elif order_id:
         lawyer_id = await get_active_order_lawyer_id(user_id, order_id)
-        if user_id == lawyer_id:
-            # Исполнитель получает информацию по заказу и кнопку завершения заказа
-            keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="Завершить заказ", callback_data=f"complete_order_{order_id}")]]
-            )
-            await bot.send_message(chat_id=user_id, text=f"У вас имеется действующий заказ: {order_id}", reply_markup=keyboard)
-            await state.set_state(EndOrder.SEND_FINAL_TEXT)
+        if not lawyer_id:
+            await bot.send_message(chat_id=user_id, text='Вы еще не выбрали исполнителя по заказу.')
         else:
-            if not lawyer_id:
-                await bot.send_message(chat_id=user_id, text='Вы еще не выбрали исполнителя по заказу.')
-            else:
-                await bot.send_message(chat_id=user_id, text=f"У вас имеется действующий заказ: {order_id}")
+            await bot.send_message(chat_id=user_id, text=f"У вас имеется действующий заказ: {order_id}")
     else:
         await call.answer("У вас нет активных заказов")
 
