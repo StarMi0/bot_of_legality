@@ -54,7 +54,7 @@ async def receive_final_text(message: Message, state: FSMContext):
     await state.set_state(EndOrder.SEND_FINAL_FILES)
 
 
-@router.message(EndOrder.SEND_FINAL_FILES, content_types=ContentType.ANY)
+@router.message(EndOrder.SEND_FINAL_FILES)
 async def receive_final_files(message: Message, state: FSMContext):
     data = await state.get_data()
     files = data.get("files", [])
