@@ -5,7 +5,6 @@ user_keyboard = ReplyKeyboardMarkup(
         [KeyboardButton(text="Поддержка")],
         [KeyboardButton(text="Создать заказ")],
         [KeyboardButton(text="Мои заказы")],
-        [KeyboardButton(text="Диалог")],
     ],
     resize_keyboard=True
 )
@@ -15,7 +14,6 @@ lawyer_keyboard = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="Поддержка")],
         [KeyboardButton(text="Мои заказы")],
-        [KeyboardButton(text="Диалог")],
     ],
     resize_keyboard=True
 )
