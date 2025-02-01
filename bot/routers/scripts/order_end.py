@@ -18,19 +18,17 @@ async def send_active_orders(call: CallbackQuery, bot: Bot, state: FSMContext):
         lawyer_id = await get_active_order_lawyer_id(user_id, order_id)
         if user_id == lawyer_id:
             # Исполнитель получает информацию по заказу и кнопку завершения заказа
-            order_info = await get_order_info_by_order_id(order_id)
             keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
                     [InlineKeyboardButton(text="Завершить заказ", callback_data=f"complete_order_{order_id}")]]
             )
-            await bot.send_message(chat_id=user_id, text=f"У вас имеется действующий заказ: {order_info}", reply_markup=keyboard)
+            await bot.send_message(chat_id=user_id, text=f"У вас имеется действующий заказ: {order_id}", reply_markup=keyboard)
             await state.set_state(EndOrder.SEND_FINAL_TEXT)
         else:
             if not lawyer_id:
                 await bot.send_message(chat_id=user_id, text='Вы еще не выбрали исполнителя по заказу.')
             else:
-                order_info = await get_order_info_by_order_id(order_id)
-                await bot.send_message(chat_id=user_id, text=f"У вас имеется действующий заказ: {order_info}")
+                await bot.send_message(chat_id=user_id, text=f"У вас имеется действующий заказ: {order_id}")
     else:
         await call.answer("У вас нет активных заказов")
 
