@@ -46,13 +46,3 @@ async def notify_admins_on_stop(bot, admins: list[int]):
             await bot.send_message(admin_id, "Бот остановлен.")
         except Exception as e:
             print(f"Ошибка при отправке сообщения администратору {admin_id}: {e}")
-
-
-# async def get_chat(message: Message):
-#     """
-#     Handler for admin, that inform bot stopping
-#     :param bot:
-#     :return:
-#     """
-#     logger.info(message.chat.id)
-#     await message.delete()

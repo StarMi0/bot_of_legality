@@ -56,9 +56,10 @@ async def send_active_orders_to_lawyers(call: CallbackQuery, bot: Bot):
     if order_id:
 
         order_info = get_order_info_by_order_id(order_id)
-        await bot.send_message(chat_id=call.from_user.id,
-                               text=f'У вас уже имеется действующий заказ:\n{order_info}',
-                               reply_markup=lawyers_orders_kb)
+        print(f"Отправка сообщения {order_info}")
+        await call.bot.send_message(chat_id=call.from_user.id,
+                                    text=f'У вас уже имеется действующий заказ:\n{order_info}',
+                                    reply_markup=lawyers_orders_kb)
     else:
         await call.answer("У вас нет активных заказов")
 
