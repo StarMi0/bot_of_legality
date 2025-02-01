@@ -3,10 +3,8 @@ from aiogram.enums import ContentType
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Message
 
-from database.request import get_active_order, get_active_order_lawyer_id, get_order_info_by_order_id, end_order
+from database.request import get_active_order, get_active_order_lawyer_id, get_active_order_by_lawyer, get_order_info_by_order_id, end_order
 from routers.states import EndOrder
-
-from bot.database.request import get_active_order_by_lawyer
 
 router = Router(name=__name__)
 
