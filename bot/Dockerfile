@@ -9,9 +9,10 @@ WORKDIR /app
 COPY . /app
 
 # Устанавливаем зависимости
+RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r req.txt
 ENV PYTHONPATH=/app
 
 # Запускаем бота
-CMD ["python", "main.py"]
+CMD ["python", "-m", "main.py"]
 
