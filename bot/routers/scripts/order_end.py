@@ -6,16 +6,18 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 from database.request import get_active_order, get_active_order_lawyer_id, get_order_info_by_order_id, end_order
 from routers.states import EndOrder
 
+from bot.database.request import get_active_order_by_lawyer
+
 router = Router(name=__name__)
 
 
 @router.message(F.text == "Мои заказы")
 async def send_active_orders(call: CallbackQuery, bot: Bot, state: FSMContext):
     user_id = call.from_user.id
-    order_id = await get_active_order(user_id)
-    lawyer_id = await get_active_order_lawyer_id(user_id, order_id)
+    order_id = await get_active_order(user_id) or await get_active_order_by_lawyer(user_id)
 
     if order_id:
+        lawyer_id = await get_active_order_lawyer_id(user_id, order_id)
         if user_id == lawyer_id:
             # Исполнитель получает информацию по заказу и кнопку завершения заказа
             order_info = await get_order_info_by_order_id(order_id)
