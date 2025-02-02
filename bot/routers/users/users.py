@@ -309,7 +309,7 @@ async def lawyer_re_accept_order(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.bot.send_message(
         chat_id=callback.from_user.id,
-        text="Укажите стоимость ваших услуг. Учтите, что будет вычтена комиссия сервиса."
+        text="Укажите стоимость ваших услуг цифрами. Учтите, что будет вычтена комиссия сервиса."
     )
     await state.set_state(LawyerResponse.ENTER_PRICE)
 
