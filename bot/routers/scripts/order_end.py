@@ -77,8 +77,9 @@ async def finalize_order(callback: CallbackQuery, bot: Bot, state: FSMContext):
     final_text = data.get("final_text")
     files = data.get("files", [])
 
-    # Отправка заказчику
-    customer_id = await get_active_order_lawyer_id(callback.from_user.id, order_id)
+    order_info = await get_order_info_by_order_id(order_id)
+    customer_id, order_status = order_info  # Разбираем кортеж
+
     print(f"customer_id: {customer_id}, order_id: {order_id}, final_text: {final_text}")
     print(f"Тип данных customer_id: {type(customer_id)}")
 
