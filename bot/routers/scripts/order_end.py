@@ -55,7 +55,17 @@ async def receive_final_text(message: Message, state: FSMContext):
 async def receive_final_files(message: Message, state: FSMContext):
     data = await state.get_data()
     files = data.get("files", [])
-    files.append(message)
+
+    # Извлекаем file_id (для фото или документа)
+    if message.photo:
+        file_id = message.photo[-1].file_id
+    elif message.document:
+        file_id = message.document.file_id
+    else:
+        await message.answer("Отправьте только фото или документы.")
+        return
+
+    files.append(file_id)  # Сохраняем только file_id
     await state.update_data(files=files)
     await message.answer("Файл принят. Отправьте ещё или нажмите 'Далее'.")
 
@@ -73,11 +83,11 @@ async def finalize_order(callback: CallbackQuery, bot: Bot, state: FSMContext):
     print(f"Тип данных customer_id: {type(customer_id)}")
 
     await bot.send_message(customer_id, f"Исполнитель завершил работу по заказу {order_id}: {final_text}")
-    for file in files:
-        if file.photo:
-            await bot.send_photo(customer_id, file.photo[-1].file_id)
-        elif file.document:
-            await bot.send_document(customer_id, file.document.file_id)
+    for file_id in files:
+        try:
+            await bot.send_document(customer_id, file_id)  # Попробуем сначала как документ
+        except Exception:
+            await bot.send_photo(customer_id, file_id)  # Если не получилось, отправим как фото
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text="Завершить заказ", callback_data=f"confirm_close_{order_id}")]]
