@@ -69,6 +69,9 @@ async def finalize_order(callback: CallbackQuery, bot: Bot, state: FSMContext):
 
     # Отправка заказчику
     customer_id = await get_active_order_lawyer_id(callback.from_user.id, order_id)
+    print(f"customer_id: {customer_id}, order_id: {order_id}, final_text: {final_text}")
+    print(f"Тип данных customer_id: {type(customer_id)}")
+
     await bot.send_message(customer_id, f"Исполнитель завершил работу по заказу {order_id}: {final_text}")
     for file in files:
         if file.photo:
