@@ -606,8 +606,8 @@ async def end_order(order_id: str,
         async with AsyncSession(engine) as session:
             async with session.begin():
                 await session.execute(
-                    update(OrderInfo)
-                    .where(OrderInfo.order_id == order_id)
+                    update(Order)
+                    .where(Order.order_id == order_id)
                     .values(
                         order_status=order_status  # Обновляем статус заказа
                     )

@@ -94,6 +94,7 @@ async def finalize_order(callback: CallbackQuery, bot: Bot, state: FSMContext):
         inline_keyboard=[[InlineKeyboardButton(text="Завершить заказ", callback_data=f"confirm_close_{order_id}")]]
     )
     await bot.send_message(customer_id, "Проверьте файлы и подтвердите завершение заказа.", reply_markup=keyboard)
+    await state.clear()
     await callback.answer()
 
 
