@@ -233,7 +233,8 @@ async def save_documents(call: CallbackQuery, state: FSMContext):
         await add_user(user_id=user_data.get("USER_ID"), user_name=user_data.get("USERNAME"),
                        user_fio=user_fio, user_date_birth=user_date_birth, role='lawyer')
         await add_lawyer_info(user_id=user_data.get("USER_ID"), education=education)
-        await call.message.answer(f"Поздравляем! Ваша регистрация подтверждена. Присоединяйтесь к нашей группе: "
+        await call.message.answer(f"Поздравляем! Ваша регистрация подтверждена. "
+                                  f"\nПрисоединяйтесь к нашей группе: "
                                   f"\nhttps://t.me/c/{abs(int(group_ID))}")
         await state.clear()
         return
@@ -274,8 +275,9 @@ async def confirm_registration(call: CallbackQuery, bot: Bot, state: FSMContext)
     await add_lawyer_info(user_id=lawyer_data["USER_ID"], education=lawyer_data["EDUCATION"])
 
     # Приглашение в группу
-    await bot.send_message(lawyer_id, f"Поздравляем! Ваша регистрация подтверждена. Присоединяйтесь к нашей группе: "
-                                      f"\nhttps://t.me/c/{abs(int(group_ID))}")
+    await bot.send_message(lawyer_data["USER_ID"], f"Поздравляем! Ваша регистрация подтверждена. "
+                                                   f"\nПрисоединяйтесь к нашей группе:"
+                                                   f"\nhttps://t.me/c/{abs(int(group_ID))}")
 
     # Сообщение об успешной регистрации
     await call.message.answer("Вы успешно зарегистрированы!")
