@@ -43,6 +43,8 @@ async def process_role(call: CallbackQuery, bot: Bot, state: FSMContext):
     Обработчик выбора роли при регистрации.
     """
     await call.answer()
+    await state.update_data(USER_ID=call.message.from_user.id,
+                            USERNAME=call.message.from_user.username)
     if call.data == 'registration_user':
         await state.update_data(ROLE='user')
     else:
@@ -227,12 +229,13 @@ async def save_documents(call: CallbackQuery, state: FSMContext):
 
     # Если нет администраторов, возвращаем callback_data="confirm_registration"
     if not admins:
+        # Добавление пользователя в базу данных
+        await add_user(user_id=user_data.get("USER_ID"), user_name=user_data.get("USERNAME"),
+                       user_fio=user_fio, user_date_birth=user_date_birth, role='lawyer')
+        await add_lawyer_info(user_id=user_data.get("USER_ID"), education=education)
         await call.message.answer(f"Поздравляем! Ваша регистрация подтверждена. Присоединяйтесь к нашей группе: "
                                   f"\nhttps://t.me/c/{abs(int(group_ID))}")
-        # Добавление пользователя в базу данных
-        await add_user(user_id=call.message.from_user.id, user_name=call.message.from_user.username,
-                       user_fio=user_fio, user_date_birth=user_date_birth, role='lawyer')
-        await add_lawyer_info(user_id=call.message.from_user.id, education=education)
+        await state.clear()
         return
 
     # Отправляем сообщение администраторам
@@ -258,7 +261,6 @@ async def confirm_registration(call: CallbackQuery, bot: Bot, state: FSMContext)
     Обработка подтверждения регистрации пользователя.
     """
     user_data = await state.get_data()
-    lawyer_id = call.from_user.id
     lawyer_data = {
         "username": call.from_user.username,
         "FIO": user_data.get("FIO"),
@@ -267,9 +269,9 @@ async def confirm_registration(call: CallbackQuery, bot: Bot, state: FSMContext)
     }
 
     # Добавление пользователя в базу данных
-    await add_user(user_id=lawyer_id, user_name=lawyer_data["username"],
+    await add_user(user_id=lawyer_data["USER_ID"], user_name=lawyer_data["USERNAME"],
                    user_fio=lawyer_data["FIO"], user_date_birth=lawyer_data["DATE"], role='lawyer')
-    await add_lawyer_info(user_id=lawyer_id, education=lawyer_data["EDUCATION"])
+    await add_lawyer_info(user_id=lawyer_data["USER_ID"], education=lawyer_data["EDUCATION"])
 
     # Приглашение в группу
     await bot.send_message(lawyer_id, f"Поздравляем! Ваша регистрация подтверждена. Присоединяйтесь к нашей группе: "
