@@ -15,6 +15,7 @@ from database.request import add_order, get_active_order, get_active_order_lawye
 from keyboard.kb import user_keyboard
 from loguru import logger
 from routers.states import SupportStates, Consult, LawyerResponse, PaymentResponse, DialogState, EndOrder
+from routers.users.lawyers import LawyerFilter
 from utils.config import group_ID as lawyers_group
 
 
@@ -290,7 +291,7 @@ async def process_next(call: CallbackQuery, state: FSMContext):
 ВЕТКА ОТКЛИКА НА ЗАКАЗ
 """
 
-@router.callback_query(F.data.startswith("accept_"))
+@router.callback_query(F.data.startswith("accept_"), LawyerFilter())
 async def lawyer_accept_order(callback: CallbackQuery, state: FSMContext):
     order_id = callback.data.split("_")[1]
     await state.update_data(order_id=order_id, lawyer_id=callback.from_user.id)

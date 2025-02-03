@@ -228,7 +228,7 @@ async def save_documents(call: CallbackQuery, state: FSMContext):
     # Если нет администраторов, возвращаем callback_data="confirm_registration"
     if not admins:
         await call.message.answer(f"Поздравляем! Ваша регистрация подтверждена. Присоединяйтесь к нашей группе: "
-                                  f"\nhttps://t.me/c/{abs(group_ID)}")
+                                  f"\nhttps://t.me/c/{abs(int(group_ID))}")
         # Добавление пользователя в базу данных
         await add_user(user_id=call.message.from_user.id, user_name=call.message.from_user.username,
                        user_fio=user_fio, user_date_birth=user_date_birth, role='lawyer')
@@ -273,7 +273,7 @@ async def confirm_registration(call: CallbackQuery, bot: Bot, state: FSMContext)
 
     # Приглашение в группу
     await bot.send_message(lawyer_id, f"Поздравляем! Ваша регистрация подтверждена. Присоединяйтесь к нашей группе: "
-                                      f"\nhttps://t.me/c/{abs(group_ID)}")
+                                      f"\nhttps://t.me/c/{abs(int(group_ID))}")
 
     # Сообщение об успешной регистрации
     await call.message.answer("Вы успешно зарегистрированы!")
