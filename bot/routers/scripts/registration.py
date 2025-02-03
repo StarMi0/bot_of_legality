@@ -8,7 +8,7 @@ from routers.states import Registration
 from routers.users.admin import AdminFilter
 from database.request import add_user, add_document, add_lawyer_info, user_exist, get_admins
 from database.redis_db import get_temp_user_data, set_temp_user_data, delete_temp_user_data
-from utils.config import invite_link
+from utils.config import group_ID
 
 
 router = Router(name=__name__)
@@ -227,7 +227,12 @@ async def save_documents(call: CallbackQuery, state: FSMContext):
 
     # Если нет администраторов, возвращаем callback_data="confirm_registration"
     if not admins:
-        await call.message.answer(f"Поздравляем! Ваша регистрация подтверждена. Присоединяйтесь к нашей группе: {invite_link}")
+        await call.message.answer(f"Поздравляем! Ваша регистрация подтверждена. Присоединяйтесь к нашей группе: "
+                                  f"\nhttps://t.me/c/{abs(group_ID)}")
+        # Добавление пользователя в базу данных
+        await add_user(user_id=call.message.from_user.id, user_name=call.message.from_user.username,
+                       user_fio=user_fio, user_date_birth=user_date_birth, role='lawyer')
+        await add_lawyer_info(user_id=call.message.from_user.id, education=education)
         return
 
     # Отправляем сообщение администраторам
@@ -267,7 +272,8 @@ async def confirm_registration(call: CallbackQuery, bot: Bot, state: FSMContext)
     await add_lawyer_info(user_id=lawyer_id, education=lawyer_data["EDUCATION"])
 
     # Приглашение в группу
-    await bot.send_message(lawyer_id, f"Поздравляем! Ваша регистрация подтверждена. Присоединяйтесь к нашей группе: {invite_link}")
+    await bot.send_message(lawyer_id, f"Поздравляем! Ваша регистрация подтверждена. Присоединяйтесь к нашей группе: "
+                                      f"\nhttps://t.me/c/{abs(group_ID)}")
 
     # Сообщение об успешной регистрации
     await call.message.answer("Вы успешно зарегистрированы!")

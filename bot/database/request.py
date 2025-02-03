@@ -626,8 +626,10 @@ async def for_chat_id(user_id: str) -> dict:
         async with session.begin():
             result = await session.execute(
                 select(OrderInfo.user_id, OrderInfo.lawyer_id)
-                .where((OrderInfo.user_id == user_id) | (OrderInfo.lawyer_id == user_id))
-            )
+                .where(
+                    (OrderInfo.user_id == user_id) | (OrderInfo.lawyer_id == user_id),
+                    Order.order_status.in_(['active', 'in_search', 'in_progress']),
+                ))
             messages = result.fetchall()
             if not messages:
                 return None
