@@ -13,7 +13,7 @@ my_password = os.getenv('DB_ROOT_PASSWORD', '2663520Art')
 my_database = os.getenv('MYSQL_DATABASE', 'legality')
 
 # Redis
-redis_host = 'redis'
+redis_host = os.getenv('REDIS_HOST', 'redis')
 redis_port = 6379
 
 # URL's

@@ -43,8 +43,7 @@ async def process_role(call: CallbackQuery, bot: Bot, state: FSMContext):
     Обработчик выбора роли при регистрации.
     """
     await call.answer()
-    await state.update_data(USER_ID=call.message.from_user.id,
-                            USERNAME=call.message.from_user.username)
+
     if call.data == 'registration_user':
         await state.update_data(ROLE='user')
     else:
@@ -63,7 +62,12 @@ async def process_fio(message: types.Message | CallbackQuery, bot: Bot, state: F
     Обработчик для ввода ФИО.
     """
     if isinstance(message, types.Message):
-        await state.update_data(FIO=message.text)
+        await state.update_data(
+            FIO=message.text,
+            USER_ID=message.from_user.id,
+            USERNAME=message.from_user.username
+        )
+        print(message.from_user.id, message.from_user.username)
     else:
         await message.answer()
 
@@ -229,13 +233,16 @@ async def save_documents(call: CallbackQuery, state: FSMContext):
 
     # Если нет администраторов, возвращаем callback_data="confirm_registration"
     if not admins:
+        print(int(group_ID))
+        invite_link = await call.bot.export_chat_invite_link(int(group_ID))
         # Добавление пользователя в базу данных
+        print(user_data.get("USER_ID"))
         await add_user(user_id=user_data.get("USER_ID"), user_name=user_data.get("USERNAME"),
                        user_fio=user_fio, user_date_birth=user_date_birth, role='lawyer')
         await add_lawyer_info(user_id=user_data.get("USER_ID"), education=education)
         await call.message.answer(f"Поздравляем! Ваша регистрация подтверждена. "
                                   f"\nПрисоединяйтесь к нашей группе: "
-                                  f"\nhttps://t.me/c/{abs(int(group_ID))}")
+                                  f"\n{invite_link}")
         await state.clear()
         return
 
@@ -268,7 +275,8 @@ async def confirm_registration(call: CallbackQuery, bot: Bot, state: FSMContext)
         "DATE": user_data.get("DATE"),
         "EDUCATION": user_data.get("EDUCATION")
     }
-
+    print(group_ID, type(group_ID))
+    invite_link = await call.bot.export_chat_invite_link(int(group_ID))
     # Добавление пользователя в базу данных
     await add_user(user_id=lawyer_data["USER_ID"], user_name=lawyer_data["USERNAME"],
                    user_fio=lawyer_data["FIO"], user_date_birth=lawyer_data["DATE"], role='lawyer')
@@ -277,7 +285,7 @@ async def confirm_registration(call: CallbackQuery, bot: Bot, state: FSMContext)
     # Приглашение в группу
     await bot.send_message(lawyer_data["USER_ID"], f"Поздравляем! Ваша регистрация подтверждена. "
                                                    f"\nПрисоединяйтесь к нашей группе:"
-                                                   f"\nhttps://t.me/c/{abs(int(group_ID))}")
+                                                   f"\n{invite_link}")
 
     # Сообщение об успешной регистрации
     await call.message.answer("Вы успешно зарегистрированы!")

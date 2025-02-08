@@ -2,6 +2,7 @@ import asyncio
 import logging
 import sys
 
+from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 from redis.asyncio import Redis
 from loguru import logger
@@ -44,7 +45,10 @@ async def setup_bot_and_dispatcher():
     storage = RedisStorage(redis=redis)
 
     # Инициализация бота и диспетчера
-    bot = Bot(token=BOT_TOKEN, parse_mode=ParseMode.HTML)
+    bot = Bot(
+        token=BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
     dp = Dispatcher(storage=storage)
     dp.include_router(main_router)
 

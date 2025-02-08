@@ -1,9 +1,10 @@
 import os
+import re
 import uuid
 from datetime import datetime, timedelta
 
 from aiogram import Router, Bot, F
-from aiogram.filters import BaseFilter, Command
+from aiogram.filters import BaseFilter, Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton, \
     InputFile, FSInputFile
@@ -14,7 +15,7 @@ from database.request import add_order, get_active_order, get_active_order_lawye
     save_message, end_order
 from keyboard.kb import user_keyboard
 from loguru import logger
-from routers.states import SupportStates, Consult, LawyerResponse, PaymentResponse, DialogState, EndOrder
+from routers.states import SupportStates, Consult, LawyerResponse, PaymentResponse, EndOrder
 from routers.users.lawyers import LawyerFilter
 from utils.config import group_ID as lawyers_group
 
@@ -294,33 +295,52 @@ async def process_next(call: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.startswith("accept_"), LawyerFilter())
 async def lawyer_accept_order(callback: CallbackQuery, state: FSMContext):
     order_id = callback.data.split("_")[1]
-    await state.update_data(order_id=order_id, lawyer_id=callback.from_user.id)
 
+    # Создаем кнопку "Ввести стоимость"
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Ввести стоимость", callback_data=f"enter_price_{order_id}")]
+    ])
+
+    # Отправляем сообщение в личный чат
     await callback.message.bot.send_message(
         chat_id=callback.from_user.id,
-        text="Укажите стоимость ваших услуг. Учтите, что будет вычтена комиссия сервиса."
+        text="Вы приняли заказ. Нажмите кнопку ниже, чтобы ввести стоимость услуг.",
+        reply_markup=markup
     )
+
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("enter_price_"))
+async def enter_price_button(callback: CallbackQuery, state: FSMContext):
+    order_id = callback.data.split("_")[2]
     await state.set_state(LawyerResponse.ENTER_PRICE)
+    await state.update_data(order_id=order_id)
 
+    current_state = await state.get_state()
 
-@router.callback_query(F.data == "edit_response")
+    await callback.message.answer("Укажите стоимость ваших услуг числом (например 12345). Учтите, что будет вычтена комиссия сервиса.")
+    await callback.answer()
+
+@router.callback_query(F.data == "edit_response", LawyerResponse.ENTER_DEADLINE)
 async def lawyer_re_accept_order(callback: CallbackQuery, state: FSMContext):
-    order_id = callback.data.split("_")[1]
-    await state.update_data(order_id=order_id, lawyer_id=callback.from_user.id)
-
     await callback.message.bot.send_message(
         chat_id=callback.from_user.id,
-        text="Укажите стоимость ваших услуг цифрами. Учтите, что будет вычтена комиссия сервиса."
+        text="Укажите стоимость ваших услуг числом (например 12345). Учтите, что будет вычтена комиссия сервиса."
     )
+
     await state.set_state(LawyerResponse.ENTER_PRICE)
 
 
 @router.message(LawyerResponse.ENTER_PRICE)
 async def enter_price(message: Message, state: FSMContext):
     try:
-        price = float(message.text)
-        if price <= 0:
-            raise ValueError("Стоимость должна быть положительным числом.")
+        cleaned_text = message.text.replace(" ", "").replace(",", ".")
+        numbers = re.findall(r"\d+(?:\.\d+)?", cleaned_text)
+        if not numbers:
+            raise ValueError("Введите число.")
+        numbers = list(map(float, numbers))
+        price = max(numbers)
 
         await state.update_data(price=price)
         await message.answer("Теперь укажите примерный срок исполнения заказа в днях.")
@@ -332,9 +352,12 @@ async def enter_price(message: Message, state: FSMContext):
 @router.message(LawyerResponse.ENTER_DEADLINE)
 async def enter_deadline(message: Message, state: FSMContext):
     try:
-        days = int(message.text)
-        if days <= 0:
-            raise ValueError("Срок должен быть положительным числом.")
+        cleaned_text = message.text.replace(" ", "").replace(",", ".")
+        numbers = re.findall(r"\d+(?:\.\d+)?", cleaned_text)
+        if not numbers:
+            raise ValueError("Введите число.")
+        numbers = list(map(int, numbers))
+        days = max(numbers)
 
         await state.update_data(deadline=days)
         data = await state.get_data()
@@ -345,7 +368,7 @@ async def enter_deadline(message: Message, state: FSMContext):
             f"Срок исполнения: {data['deadline']} дней.\n\n"
             f"Верно?",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="Откликнуться", callback_data="confirm_response")],
+                [InlineKeyboardButton(text="Верно", callback_data="confirm_response")],
                 [InlineKeyboardButton(text="Исправить", callback_data="edit_response")]
             ])
         )
@@ -358,6 +381,8 @@ async def confirm_response(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     order_info = await get_order_info_by_order_id(data["order_id"])  # Функция для получения ID пользователя, создавшего заказ
     user_id = order_info[0]
+    callback_data = f"choose_{data['order_id']}_{callback.from_user.id}_{int(data['price'])}_{data['deadline']}"
+    print(f"DEBUG: callback_data = {callback_data} (length: {len(callback_data)})")
     try:
         await callback.message.bot.send_message(
             chat_id=user_id,
@@ -370,9 +395,10 @@ async def confirm_response(callback: CallbackQuery, state: FSMContext):
             ),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="Выбрать исполнителя",
-                                      callback_data=f"choose_{data.get('order_id')}_{callback.from_user.id}_{data['price']}_{data['deadline']}")]
+                                      callback_data=callback_data)]
             ])
         )
+
         await state.set_state(PaymentResponse.AWAITING_PAYMENT)
         await callback.message.answer("Ваш отклик отправлен пользователю.")
         await state.clear()
@@ -387,25 +413,26 @@ async def choose_lawyer(callback: CallbackQuery, state: FSMContext):
     if await state.get_state() is None:
         # Устанавливаем начальное состояние, если оно отсутствует
         await state.set_state(PaymentResponse.CONFIRM_RESPONSE)
+    # Проверяем статус заказа и обновляем информацию о юристе
+    order_info = await get_order_info_by_order_id(order_id)
+    user_id = order_info[0]
     await state.update_data(
         order_id=order_id,
         lawyer_id=lawyer_id,
         price=price,
-        deadline=deadline
+        deadline=deadline,
+        user_id=user_id
     )
 
     # Проверяем сохраненные данные
     data = await state.get_data()
     print(f"Состояние после сохранения: {data}")
 
-    # Проверяем статус заказа и обновляем информацию о юристе
-    order_info = await get_order_info_by_order_id(order_id)
     if not order_info or order_info[1] == "in_progress":  # Если заказ уже взят юристом
         await callback.message.answer("Этот заказ уже был передан другому юристу.")
         return
     offer_contract_path = "offer_contract.pdf"
-    # Получаем user_id клиента из информации о заказе
-    user_id = order_info[0]
+
 
     # Отправка PDF-файла с договором оферты
     try:
@@ -455,7 +482,7 @@ async def check_payment(callback: CallbackQuery, state: FSMContext):
             order_day_end = datetime.today().date() + timedelta(days=int(data.get("deadline")))
             added_to_db = await add_order_info(
                 order_id=order_id,
-                user_id=callback.message.from_user.id,
+                user_id=data.get("user_id"),
                 lawyer_id=data.get("lawyer_id"),
                 order_cost=data.get("price"),
                 order_day_start=order_day_start,

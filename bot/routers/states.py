@@ -24,11 +24,6 @@ class PaymentResponse(StatesGroup):
     CONFIRM_RESPONSE = State()
     AWAITING_PAYMENT = State()
 
-# Определяем состояние для диалога
-class DialogState(StatesGroup):
-    active = State()  # Состояние активного диалога
-    partner_id = State()  # ID собеседника
-
 class EndOrder(StatesGroup):
     SEND_FINAL_TEXT = State()
     SEND_FINAL_FILES = State()

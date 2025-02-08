@@ -1,8 +1,10 @@
-from aiogram import Router, Bot, types
+from aiogram import Router, Bot, types, F
 from aiogram.filters import StateFilter
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from database.request import for_chat_id
+from routers.states import *
 
 router = Router(name=__name__)
 
@@ -10,8 +12,31 @@ router = Router(name=__name__)
 ВЕТКА ПЕРЕПИСОК
 """
 
-@router.message(StateFilter(None))
-async def handle_message(message: Message, bot: Bot):
+@router.message(
+    F.chat.type == "private",
+    ~StateFilter(  # Исключаем все состояния, при которых переписка не должна работать
+        Registration.fio,
+        Registration.date_birth,
+        Registration.education,
+        Registration.upload_documents,
+        Registration.data_to_admin,
+        SupportStates.waiting_for_problem_description,
+        Consult.CHOOSE_TOPIC,
+        Consult.DESCRIBE_PROBLEM,
+        Consult.UPLOAD_FILES,
+        LawyerResponse.ENTER_PRICE,
+        LawyerResponse.ENTER_DEADLINE,
+        PaymentResponse.CONFIRM_RESPONSE,
+        PaymentResponse.AWAITING_PAYMENT,
+        EndOrder.SEND_FINAL_TEXT,
+        EndOrder.SEND_FINAL_FILES,
+        EndOrder.MESSAGE_TO_ADMIN,
+    )
+)
+async def handle_message(message: Message, bot: Bot, state: FSMContext):
+    current_state = await state.get_state()
+    print(f"[LOG] Текущее состояние пользователя: {current_state}")
+
     user_id = str(message.from_user.id)
     chat_info = await for_chat_id(user_id)
 
