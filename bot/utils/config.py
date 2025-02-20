@@ -3,8 +3,8 @@ from dotenv import find_dotenv, load_dotenv
 
 load_dotenv(find_dotenv())
 # bot tokens and id's
-BOT_TOKEN = os.getenv('BOT_TOKEN', '6937575207:AAEyjyd2hEuJCrQPWSTDj7RcN_Me2Wy6cKk')
-group_ID = os.getenv('CONSULT_GROUP_ID', '-1002050871811')
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+group_ID = os.getenv('CONSULT_GROUP_ID')
 
 # sql data
 my_host = os.getenv('MYSQL_HOST')
