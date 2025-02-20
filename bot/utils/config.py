@@ -7,10 +7,10 @@ BOT_TOKEN = os.getenv('BOT_TOKEN', '6937575207:AAEyjyd2hEuJCrQPWSTDj7RcN_Me2Wy6c
 group_ID = os.getenv('CONSULT_GROUP_ID', '-1002050871811')
 
 # sql data
-my_host = os.getenv('MYSQL_HOST', 'localhost')
-my_user = os.getenv('MYSQL_USER', 'root')
-my_password = os.getenv('DB_ROOT_PASSWORD', '2663520Art')
-my_database = os.getenv('MYSQL_DATABASE', 'legality')
+my_host = os.getenv('MYSQL_HOST')
+my_user = os.getenv('MYSQL_USER')
+my_password = os.getenv('DB_ROOT_PASSWORD')
+my_database = os.getenv('MYSQL_DATABASE')
 
 # Redis
 redis_host = os.getenv('REDIS_HOST', 'redis')
