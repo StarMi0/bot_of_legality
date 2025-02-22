@@ -22,7 +22,7 @@ services:
       # DB env data
       MYSQL_DATABASE: legality
       MYSQL_HOST: ${MYSQL_HOST}
-      MYSQL_USER: root
+      MYSQL_USER: ${MYSQL_USER}
       DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
     volumes:
       - ./bot:/app  # Примонтировать папку bot внутрь контейнера
