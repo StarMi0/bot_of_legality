@@ -60,7 +60,7 @@ async def setup_bot_and_dispatcher():
 
     # Создание таблиц базы данных, если они не существуют
     await create_tables_if_not_exists(my_host, my_user, my_password, my_database)
-    print(my_user)
+    print(my_host)
 
     admins = await get_admins()
 
