@@ -14,21 +14,9 @@ my_database = "legality"
 
 Base = declarative_base()
 
-async def test_aiomysql_connection():
-    """Проверка подключения через aiomysql"""
-    print(f"Тест aiomysql: host={my_host}, user={my_user}, database={my_database}")
-    try:
-        connection = await aiomysql.connect(
-            host=my_host, user=my_user, password=my_password, db=my_database
-        )
-        print("✅ Подключение через aiomysql успешно!")
-        await connection.ensure_closed()
-    except Exception as e:
-        print(f"❌ Ошибка при подключении через aiomysql: {e}")
-
 async def test_sqlalchemy_connection():
     """Проверка подключения через SQLAlchemy"""
-    db_url = f"mysql+aiomysql://{my_user}:{my_password}@{my_host}/{my_database}"
+    db_url = f"mysql+aiomysql://{my_user}:{my_password}@{my_host}:3306/{my_database}"
     print(f"Тест SQLAlchemy: {db_url}")
     try:
         engine = create_async_engine(db_url, echo=True)
@@ -39,7 +27,6 @@ async def test_sqlalchemy_connection():
         print(f"❌ Ошибка при подключении через SQLAlchemy: {e}")
 
 async def main():
-    await test_aiomysql_connection()
     await test_sqlalchemy_connection()
 
 if __name__ == "__main__":
