@@ -10,7 +10,7 @@ async def create_tables_if_not_exists(db_host, db_user, db_password, db_database
     Создает таблицы в БД на основе моделей
     Если clear=True, то сначала удаляет существующую базу данных.
     """
-    base_url = f"mysql+aiomysql://{db_user}:{db_password}@{db_host}/"
+    base_url = f"mysql+aiomysql://{db_user}:{db_password}@{db_host}:3306/"
     db_url = f"{base_url}{db_database}"
 
     logger.info(f"Подключение к MySQL: host={db_host}, user={db_user}, database={db_database}")

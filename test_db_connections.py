@@ -10,7 +10,7 @@ load_dotenv(find_dotenv())
 my_host = os.getenv('MYSQL_HOST')
 my_user = os.getenv('MYSQL_USER')
 my_password = os.getenv('DB_ROOT_PASSWORD')
-my_database = os.getenv('MYSQL_DATABASE')
+my_database = "legality"
 
 Base = declarative_base()
 
