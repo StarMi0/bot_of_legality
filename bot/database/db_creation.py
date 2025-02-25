@@ -13,11 +13,15 @@ async def create_tables_if_not_exists(db_host, db_user, db_password, db_database
     base_url = f"mysql+aiomysql://{db_user}:{db_password}@{db_host}/"
     db_url = f"{base_url}{db_database}"
 
+    logger.info(f"Подключение к MySQL: host={db_host}, user={db_user}, database={db_database}")
+    print(f"Попытка подключения: {db_host=} {db_user=} {db_database=}")
+
     try:
         # Подключение без указания базы данных
         connection = await aiomysql.connect(
             host=db_host, user=db_user, password=db_password
         )
+        logger.info("Подключение к серверу MySQL установлено")
 
         async with connection.cursor() as cursor:
             if clear:
