@@ -16,7 +16,7 @@ Base = declarative_base()
 
 async def test_sqlalchemy_connection():
     """Проверка подключения через SQLAlchemy"""
-    db_url = f"mysql+aiomysql://{my_user}:{my_password}@tcp({my_host}):3306/{my_database}"
+    db_url = f"mysql+aiomysql://{my_user}:{my_password}@{my_host}:3306/{my_database}"
     print(f"Тест SQLAlchemy: {db_url}")
     try:
         engine = create_async_engine(db_url, echo=True)
