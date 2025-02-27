@@ -64,7 +64,6 @@ networks:
   app-network:
     driver: bridge
 
-secrets:
-  git_ssh_key:
-    file: .env
+volumes:
+  db_data:
 
