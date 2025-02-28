@@ -18,6 +18,7 @@ redis_host = os.getenv('REDIS_HOST', 'redis')
 redis_port = 6379
 
 # URL's
-DATABASE_URL = f"mysql+aiomysql://{my_user}:{my_password}@{my_host}/{my_database}"
+encoded_password = urllib.parse.quote_plus(my_password)
+DATABASE_URL = f"mysql+aiomysql://{my_user}:{encoded_password}@{my_host}/{my_database}"
 DATABASE_URL_CREATE = f"mysql+aiomysql://{my_user}:{my_password}@{my_host}/{my_database}"
 
