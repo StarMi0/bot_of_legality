@@ -1,5 +1,6 @@
 import os
 from dotenv import find_dotenv, load_dotenv
+import urllib.parse
 
 load_dotenv(find_dotenv())
 # bot tokens and id's
@@ -9,7 +10,7 @@ group_ID = os.getenv('CONSULT_GROUP_ID')
 # sql data
 my_host = os.getenv('MYSQL_HOST')
 my_user = os.getenv('MYSQL_USER')
-my_password = os.getenv('DB_ROOT_PASSWORD')
+my_password = urllib.parse.quote_plus(os.getenv('DB_ROOT_PASSWORD'))
 my_database = os.getenv('MYSQL_DATABASE')
 
 # Redis

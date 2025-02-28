@@ -11,7 +11,7 @@ services:
     ports:
       - "8080:80"
     networks:
-      - app-network
+      - mysql-database
 
   telegram-bot:
     build:
@@ -33,7 +33,7 @@ services:
     ports:
       - "8081:8080"  # Проброс порта для доступа (если нужен)
     networks:
-      - app-network
+      - mysql-database
 
 
   redis:
@@ -42,28 +42,25 @@ services:
     ports:
       - "6379:6379"
     networks:
-      - app-network
+      - mysql-database
 
   db:
-    image: mysql:latest
+    image: mysql:8.0
+    restart: unless-stopped
     container_name: mysql-db
-    restart: always
+    command: --default-authentication-plugin=mysql_native_password
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: legality
       MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_PASSWORD: ${DB_ROOT_PASSWORD}
     ports:
       - "3306:3306"
-    volumes:
-      - db_data:/var/lib/mysql
     networks:
-      - app-network
+      - mysql-database
+
 
 networks:
-  app-network:
+  mysql-database:
     driver: bridge
-
-volumes:
-  db_data:
 
