@@ -28,8 +28,6 @@ services:
       - ./bot:/app  # Примонтировать папку bot внутрь контейнера
     restart: always
     command: python /app/main.py
-    depends_on:
-      - db
     ports:
       - "8081:8080"  # Проброс порта для доступа (если нужен)
     networks:
