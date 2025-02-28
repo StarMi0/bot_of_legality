@@ -9,7 +9,8 @@ group_ID = os.getenv('CONSULT_GROUP_ID')
 
 # sql data
 my_host = os.getenv('MYSQL_HOST')
-my_user = os.getenv('MYSQL_USER')
+my_user = "root"
+# my_user = os.getenv('MYSQL_USER')
 my_password = urllib.parse.quote_plus(os.getenv('DB_ROOT_PASSWORD'))
 my_database = os.getenv('MYSQL_DATABASE')
 
